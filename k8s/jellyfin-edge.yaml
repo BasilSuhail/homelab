@@ -1,0 +1,190 @@
+# The bouncer between Jellyfin's tailnet name (and Funnel, its internet door)
+# and Jellyfin itself. Deployed by deploy/install-jellyfin-edge.sh, which fills
+# in __POD_CIDR__; k8s/jellyfin.yaml's Ingress points here.
+#
+# Tailscale marks every request that came in through Funnel with
+# `Tailscale-Funnel-Request: ?1` and puts the visitor's real address in
+# X-Forwarded-For, overwriting anything the visitor sent. So this can tell
+# the internet from the tailnet, and Jellyfin can tell one visitor from
+# another. For requests from the internet it:
+#   - refuses the admin-only changes (plugins, users, libraries, server
+#     settings, restarts), even with a valid admin login;
+#   - allows each address a few sign-in attempts a minute.
+# Requests from the tailnet pass as before. The TV at home does not come
+# through here at all (jellyfin-lan).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jellyfin-edge
+  namespace: pi
+data:
+  nginx.conf: |
+    worker_processes 1;
+    pid /tmp/nginx.pid;
+    error_log /dev/stderr warn;
+    events { worker_connections 1024; }
+
+    http {
+      client_body_temp_path /tmp/client_temp;
+      proxy_temp_path /tmp/proxy_temp;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
+      scgi_temp_path /tmp/scgi_temp;
+      server_tokens off;
+
+      # The Tailscale proxy pod is on the pod network; only its
+      # X-Forwarded-For counts, and Tailscale writes that one itself.
+      set_real_ip_from __POD_CIDR__;
+      real_ip_header X-Forwarded-For;
+
+      map $http_tailscale_funnel_request $internet { default 0; "?1" 1; }
+
+      # Admin-only changes, refused from the internet. Viewers never make
+      # these; signing in, watching, changing one's own password and settings
+      # are not in it.
+      map "$internet $request_method $uri" $refused {
+        default 0;
+        "~*^1 (POST|PUT|DELETE) /(Plugins|Packages|Repositories|Startup|ScheduledTasks|Auth/Keys|Library/VirtualFolders|Library/Refresh|Users/New|Devices|Environment|Backup)" 1;
+        "~*^1 (POST|PUT|DELETE) /System/(Restart|Shutdown|Configuration)" 1;
+        "~*^1 (POST|PUT|DELETE) /Users/[^/]+/Policy" 1;
+        "~*^1 DELETE /Users/" 1;
+        "~*^1 GET /(System/Logs|Auth/Keys|Environment|Startup)" 1;
+      }
+
+      limit_req_zone $binary_remote_addr zone=signin:10m rate=6r/m;
+      limit_req_status 429;
+
+      map $http_upgrade $connection_upgrade { default upgrade; "" close; }
+
+      # The path only: stream URLs carry an api_key in the query string.
+      log_format edge '$remote_addr internet=$internet $status $request_method $uri $body_bytes_sent';
+      access_log /dev/stdout edge;
+
+      upstream jellyfin { server jellyfin.pi.svc.cluster.local:80; }
+
+      server {
+        listen 8080;
+        client_max_body_size 100m;
+
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        # Films stream straight through; nothing waits for a whole response.
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+
+        if ($refused) { return 403; }
+
+        location ~* ^/Users/(AuthenticateByName|AuthenticateWithQuickConnect)$ {
+          limit_req zone=signin burst=4 nodelay;
+          proxy_pass http://jellyfin;
+        }
+        location / {
+          proxy_pass http://jellyfin;
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin-edge
+  namespace: pi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jellyfin-edge
+  template:
+    metadata:
+      labels:
+        app: jellyfin-edge
+      annotations:
+        # The installer sets this to the config's checksum, so a changed
+        # config restarts the pod.
+        pi/config: __CONFIG_SUM__
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: nginx
+          # Stable line (1.30.6 when pinned), by digest.
+          image: docker.io/nginxinc/nginx-unprivileged:1.30-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 20m, memory: 16Mi }
+            limits: { memory: 128Mi }
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 30
+          volumeMounts:
+            - { name: config, mountPath: /etc/nginx/nginx.conf, subPath: nginx.conf, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: config
+          configMap: { name: jellyfin-edge }
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin-edge
+  namespace: pi
+spec:
+  selector:
+    app: jellyfin-edge
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# In: only the Tailscale proxies. Out: only Jellyfin, and DNS to find it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jellyfin-edge
+  namespace: pi
+spec:
+  podSelector:
+    matchLabels: { app: jellyfin-edge }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: tailscale }
+      ports:
+        - { port: 8080, protocol: TCP }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: jellyfin }
+      ports:
+        - { port: 8096, protocol: TCP }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }

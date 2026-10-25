@@ -1,0 +1,158 @@
+# ArchiveBox 0.9: a self-hosted internet archive. Feed it URLs and it saves
+# everything — HTML snapshots, PDFs, screenshots, media, git repos — using
+# wget, yt-dlp, and its own headless Chrome under the hood.
+#
+# Deployed by deploy/install-archivebox.sh, which fills in the __PLACEHOLDERS__.
+#
+# Two folders, two drives, no symlinks:
+#
+#   /data           __APPS_DIR__/ArchiveBox         SSD. The SQLite index, the
+#                                                   config, logs and personas
+#                                                   (logged-in browser profiles).
+#                                                   Small, read at random.
+#   /data/archive   __DATA_DIR__/ArchiveBox/archive the archived pages, videos
+#                                                   and PDFs. Large, and what
+#                                                   the big drive is for.
+#
+# The image's own entrypoint runs first, as root: it gives its `archivebox`
+# user the owner's UID (PUID/PGID), then drops to it with setpriv. One-off
+# commands through `kubectl exec` skip the entrypoint, so they drop the same
+# way by hand (see the installer).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: archivebox
+  namespace: pi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: archivebox
+  template:
+    metadata:
+      labels:
+        app: archivebox
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        - name: archivebox
+          # The image's default command is `archivebox server --init
+          # 0.0.0.0:5797`: it creates the collection on first start and
+          # upgrades it on later ones.
+          image: archivebox/archivebox:0.9.73
+          ports:
+            - name: http
+              containerPort: 5797
+          env:
+            - name: PUID
+              value: "__UID__"
+            - name: PGID
+              value: "__GID__"
+            - name: TZ
+              value: Europe/London
+            # The address people open. Behind the Tailscale ingress there is
+            # one name and no wildcard subdomains, so archived pages replay
+            # on that one domain with their scripts stripped, which keeps a
+            # saved page from acting as the logged-in admin.
+            - name: BASE_URL
+              value: "__BASE_URL__"
+            - name: SERVER_SECURITY_MODE
+              value: safe-onedomain-nojsreplay
+            # Logged-in pages end up in here; the list is for the admin.
+            - name: PUBLIC_INDEX
+              value: "False"
+            - name: PUBLIC_ADD_VIEW
+              value: "False"
+            # Read once, by the first init. Changing the Secret later does
+            # nothing: use `archivebox manage changepassword`.
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef: { name: archivebox-admin, key: ADMIN_USERNAME, optional: true }
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: archivebox-admin, key: ADMIN_PASSWORD, optional: true }
+          volumeMounts:
+            - name: index
+              mountPath: /data
+            - name: archive
+              mountPath: /data/archive
+            - name: tmp
+              mountPath: /tmp/archivebox
+            - name: shm
+              mountPath: /dev/shm
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 50m
+            # Chrome renders each page for the screenshot, PDF and SingleFile,
+            # and a crawl runs several. At 512Mi (sized for the Pi) it was
+            # OOMKilled mid-save and the web interface went down with it. A
+            # ceiling, not a reservation: idle, it holds a few hundred MB.
+            limits:
+              memory: 4Gi
+          # First start creates the database and installs nothing over the
+          # network, but can still take a minute or two on a cold disk.
+          startupProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 30
+            failureThreshold: 5
+      volumes:
+        - name: index
+          hostPath:
+            path: __APPS_DIR__/ArchiveBox
+            type: Directory
+  # `type: Directory` on purpose. With the big drive unmounted its mount point
+  # is an empty folder on the boot disk; DirectoryOrCreate would let the app
+  # start there and archive onto the wrong disk. Directory refuses, and the
+  # pod waits at ContainerCreating with the missing path in its events.
+        - name: archive
+          hostPath:
+            path: __DATA_DIR__/ArchiveBox/archive
+            type: Directory
+        - name: tmp
+          emptyDir: {}
+        # Docker gives a container 64MB of /dev/shm and ArchiveBox's compose
+        # file raises it to 1GB for Chrome; a pod gets this instead. It is
+        # RAM, and counts toward the limit above.
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: archivebox
+  namespace: pi
+spec:
+  selector:
+    app: archivebox
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: archivebox
+  namespace: pi
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: archivebox
+      port:
+        name: http
+  tls:
+    - hosts: ["archivebox"]

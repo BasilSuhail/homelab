@@ -1,0 +1,79 @@
+[Unit]
+Description=Pi metrics shim (power, throttle) for the fleet dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pi-metrics.py
+Restart=always
+RestartSec=5
+
+# AGENT_TOKEN, shared with the console. Root-only on disk; systemd reads it
+# before dropping to the service user. Optional so the unit still starts
+# without it, in which case every file route refuses (see pi-metrics.py).
+EnvironmentFile=-/etc/pi/agent-token
+
+# install.sh drops in the login user. Not root, and not nobody either: nobody
+# cannot enter a home directory, so the browser showed empty folders where the
+# actual work is. As the login user it sees what an ssh session would see, and
+# no more — Docker's internal storage stays root-owned and invisible.
+#
+# vcgencmd needs /dev/vcio, which is group video.
+User=nobody
+SupplementaryGroups=video
+
+# Named tops of the tree, as label=path. Everything under them is readable —
+# a browser that cannot show your own code or a config under /etc is a folder,
+# not a file manager. install.sh adds a home= shortcut for the login user.
+#
+# Quoted because systemd splits an unquoted Environment= on whitespace, and
+# the archive's label has a space in it: unquoted, "1)" would end the value
+# and "Archive=/srv/archive" would become a second variable of its own.
+Environment="BROWSE_ROOTS=system=/,1) Archive=/1) Archive"
+
+# The only paths that may ever be modified. Everything else is permanently
+# read-only whatever the interface offers. /media is where a plugged-in drive
+# lands, so a new disk arrives writable without being configured.
+Environment="BROWSE_WRITABLE=/1) Archive:/srv/browse:/media:/mnt"
+
+# The same list again, enforced a layer lower. ProtectSystem=strict makes the
+# whole filesystem read-only to this process; these punch through it for those
+# paths and nothing else. A bug in the write endpoints cannot reach /etc, /usr
+# or a home directory even if every check in the code were wrong, because the
+# kernel refuses the open before any of that code runs.
+ReadWritePaths=-"/1) Archive"
+ReadWritePaths=-/srv/browse
+ReadWritePaths=-/media
+ReadWritePaths=-/mnt
+
+# Thumbnails. systemd creates /var/cache/pi-thumbs owned by this service and
+# makes it writable despite ProtectSystem=strict — the one path this process
+# may write, and everything in it is derived and safe to delete.
+CacheDirectory=pi-thumbs
+Environment=THUMB_DIR=/var/cache/pi-thumbs
+Environment=THUMB_CACHE_MAX_MB=500
+
+# Fan speeds set by hand on the dashboard, read by pi-fans (fan-curve.py).
+# Kept when this service restarts; /run empties at a reboot, so every fan
+# starts on auto.
+RuntimeDirectory=pi-fans-manual
+RuntimeDirectoryPreserve=yes
+
+# It reads two sysfs files, shells out to vcgencmd, and walks the browse roots
+# to size them. ProtectSystem=strict keeps every one of those read-only, so a
+# bug in the scanner cannot write anything anywhere.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+# The scan holds a bounded cache of directory listings, and thumbnailing is a
+# child process rather than a library, so this stays low deliberately. 128M is
+# a kill switch, not an allowance: reaching it means something is wrong.
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,40 @@
+# Cluster credentials — anyone holding these owns the cluster
+kubeconfig
+kubeconfig*
+*.kubeconfig
+k3s.yaml
+node-token
+*.pem
+*.key
+*.crt
+
+# Secrets and environment
+.env
+.env.*
+!.env.example
+*.secret.yaml
+docker-compose.override.yml
+
+# Tailscale state
+tailscaled.state
+/var/lib/tailscale/
+
+# Disk images — contain wifi credentials, SSH host keys, everything
+*.img
+*.img.gz
+*.dd
+
+# Backups and dumps
+*.bak
+*.sql
+*.dump
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo

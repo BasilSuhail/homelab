@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#eaeef1"/>
+    </linearGradient>
+    <linearGradient id="pcb" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3FA55F"/><stop offset="1" stop-color="#1F7A41"/>
+    </linearGradient>
+    <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="sq"><rect width="192" height="192" rx="42"/></clipPath>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4.5" flood-color="#0d2f1c" flood-opacity=".34"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#sq)">
+    <rect width="192" height="192" fill="url(#bg)"/>
+    <path d="M0 0h192v100c-26 15-60 23-96 23S26 115 0 100Z" fill="url(#gl)"/>
+    <g transform="translate(96,96) scale(0.92) translate(-96,-96)">
+      <g filter="url(#sh)"><g transform="translate(0,-3.5)"><path d="M96 20 156 54 96 88 36 54Z" fill="url(#pcb)"/><path d="M36 54v13l60 34V88Z" fill="#E07A2E"/><path d="M156 54v13L96 101V88Z" fill="#B8541C"/><path d="M96 43 116 54 96 65 76 54Z" fill="#0F2C3A"/><path d="M96 45.5 112.5 54 96 62.5 79.5 54Z" fill="none" stroke="#5FD79A" stroke-width="1.6"/><g fill="#E8B53C"><ellipse cx="54" cy="48.5" rx="4" ry="2.4"/><ellipse cx="62" cy="44.0" rx="4" ry="2.4"/><ellipse cx="70" cy="39.5" rx="4" ry="2.4"/><ellipse cx="78" cy="35.0" rx="4" ry="2.4"/><ellipse cx="86" cy="30.5" rx="4" ry="2.4"/></g><path d="M124 62 140 53l6 3.4-16 9.2Z" fill="#D8DEE3"/><g fill="#7FE0A8" opacity=".8"><ellipse cx="72" cy="68" rx="3.4" ry="2"/><ellipse cx="82" cy="73.6" rx="3.4" ry="2"/></g></g></g>
+      <g filter="url(#sh)"><g transform="translate(0,74.5)"><path d="M96 20 156 54 96 88 36 54Z" fill="url(#pcb)"/><path d="M36 54v13l60 34V88Z" fill="#E07A2E"/><path d="M156 54v13L96 101V88Z" fill="#B8541C"/><path d="M96 43 116 54 96 65 76 54Z" fill="#0F2C3A"/><path d="M96 45.5 112.5 54 96 62.5 79.5 54Z" fill="none" stroke="#5FD79A" stroke-width="1.6"/><g fill="#E8B53C"><ellipse cx="54" cy="48.5" rx="4" ry="2.4"/><ellipse cx="62" cy="44.0" rx="4" ry="2.4"/><ellipse cx="70" cy="39.5" rx="4" ry="2.4"/><ellipse cx="78" cy="35.0" rx="4" ry="2.4"/><ellipse cx="86" cy="30.5" rx="4" ry="2.4"/></g><path d="M124 62 140 53l6 3.4-16 9.2Z" fill="#D8DEE3"/><g fill="#7FE0A8" opacity=".8"><ellipse cx="72" cy="68" rx="3.4" ry="2"/><ellipse cx="82" cy="73.6" rx="3.4" ry="2"/></g></g></g>
+    </g>
+    <rect width="192" height="192" rx="42" fill="none" stroke="#0b2a36" stroke-opacity=".16" stroke-width="2.5"/>
+  </g>
+</svg>

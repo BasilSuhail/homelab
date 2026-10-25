@@ -1,0 +1,493 @@
+# Nextcloud: the family's file cloud. One account per person, each with its
+# own folder and storage limit, reached from a browser or the Nextcloud apps.
+#
+# Deployed by deploy/install-nextcloud.sh (`make cloud`), which fills in the
+# paths, the tailnet name and the time zone. Lives in the `pi` namespace.
+#
+#   nextcloud           the app (Apache + PHP) and, beside it, a cron loop
+#   nextcloud-postgres  the file index, shares and settings
+#   nextcloud-redis     file locking and the cache
+#
+# Where things live, the same split as every other app here:
+#
+#   __APPS_DIR__/Nextcloud/html   Nextcloud's own code, config and apps (SSD)
+#   __APPS_DIR__/Nextcloud/db     Postgres (SSD: thousands of small reads)
+#   __POOL_DIR__/Nextcloud/data   everyone's files, plain files per user, on
+#                                 the mergerfs pool (deploy/setup-pool.sh)
+#   __HDD1_DIR__, __HDD2_DIR__    both HDDs whole, admin only: writable
+#                                 except the app folders
+#   __ARCHIVE_DIR__               the SSD archive, admin only: writable
+#                                 except Apps
+#
+# Versions are pinned by tag AND digest, as Immich's Postgres is: nothing
+# changes until a PR changes it. 34 is supported until 2027-06; take its patch
+# releases deliberately (34.0.x), and move a major version at a time — Nextcloud
+# refuses to skip one.
+#
+# enableServiceLinks: false on every pod: a Service named `nextcloud` would
+# otherwise inject NEXTCLOUD_PORT=tcp://… into the app's environment, the same
+# collision that stopped Immich from starting (see k8s/immich.yaml).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud-postgres
+  namespace: pi
+spec:
+  selector:
+    app: nextcloud-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud-postgres
+  namespace: pi
+spec:
+  replicas: 1
+  # One data directory: the old pod must be gone before the new one starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nextcloud-postgres
+  template:
+    metadata:
+      labels:
+        app: nextcloud-postgres
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        - name: postgres
+          image: docker.io/library/postgres:17.11-bookworm@sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: nextcloud
+            - name: POSTGRES_USER
+              value: nextcloud
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-db
+                  key: password
+            - name: POSTGRES_INITDB_ARGS
+              value: "--data-checksums"
+          volumeMounts:
+            - name: db
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 1Gi
+              cpu: 500m
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "nextcloud", "-d", "nextcloud"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "nextcloud", "-d", "nextcloud"]
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+      volumes:
+        - name: db
+          hostPath:
+            path: __APPS_DIR__/Nextcloud/db
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud-redis
+  namespace: pi
+spec:
+  selector:
+    app: nextcloud-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud-redis
+  namespace: pi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nextcloud-redis
+  template:
+    metadata:
+      labels:
+        app: nextcloud-redis
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        # The same image and digest Immich's queue runs, so the board already
+        # has it. No volume: locks and cache, nothing worth keeping.
+        - name: redis
+          image: docker.io/valkey/valkey:9@sha256:8e8d64b405ce18f41b8e5ee20aa4687a8ed0022d1298f2ce31cdcf3a76e09411
+          ports:
+            - name: redis
+              containerPort: 6379
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 128Mi
+              cpu: 100m
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud
+  namespace: pi
+spec:
+  selector:
+    app: nextcloud
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud
+  namespace: pi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nextcloud
+  template:
+    metadata:
+      labels:
+        app: nextcloud
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      # Nextcloud Office calls Nextcloud back on its public address, and
+      # MagicDNS does not resolve inside a pod: the cloud name, pointed at its
+      # tailnet address (install-nextcloud.sh fills it in).
+      hostAliases: __CLOUD_ALIAS__
+      containers:
+        - name: nextcloud
+          image: docker.io/library/nextcloud:34.0.5-apache@sha256:1f9212adecae32010cdbf137d7e0db78d08c696dc3e77f1eddcbf902d10209b4
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: POSTGRES_HOST
+              value: nextcloud-postgres
+            - name: POSTGRES_DB
+              value: nextcloud
+            - name: POSTGRES_USER
+              value: nextcloud
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-db
+                  key: password
+            # First start only: the image installs Nextcloud with this admin.
+            - name: NEXTCLOUD_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-admin
+                  key: username
+            - name: NEXTCLOUD_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-admin
+                  key: password
+            - name: NEXTCLOUD_TRUSTED_DOMAINS
+              value: "__DOMAIN__"
+            - name: REDIS_HOST
+              value: nextcloud-redis
+            # The tailscale proxy terminates TLS and forwards plain HTTP from a
+            # pod address, so Nextcloud has to be told the public face.
+            - name: OVERWRITEPROTOCOL
+              value: https
+            - name: OVERWRITEHOST
+              value: "__DOMAIN__"
+            - name: OVERWRITECLIURL
+              value: "https://__DOMAIN__"
+            # The cluster's pod range, where the tailscale proxy connects
+            # from. Read from the nodes at install time, not written here.
+            - name: TRUSTED_PROXIES
+              value: "__POD_CIDRS__"
+            - name: PHP_MEMORY_LIMIT
+              value: 512M
+            - name: PHP_UPLOAD_LIMIT
+              value: 16G
+            - name: TZ
+              value: "__TZ__"
+          volumeMounts:
+            - name: html
+              mountPath: /var/www/html
+            - name: data
+              mountPath: /var/www/html/data
+            # The admin's five disks (install-nextcloud.sh attaches them as
+            # external storage for the admin only). The HDDs are writable
+            # except the app folders, each mounted read-only on top at its
+            # real place: Jellyfin's library, torrents still seeding, Immich,
+            # other accounts' Nextcloud files, ArchiveBox, Kiwix and the vault
+            # backups. The SSD archive the same way, with Apps (every app's
+            # settings and database) read-only.
+            - name: hdd1
+              mountPath: /mnt/hdd1
+            - name: hdd1-jellyfin
+              mountPath: /mnt/hdd1/Jellyfin
+              readOnly: true
+            - name: hdd1-downloads
+              mountPath: /mnt/hdd1/Downloads
+              readOnly: true
+            - name: hdd2
+              mountPath: /mnt/hdd2
+            - name: hdd2-immich
+              mountPath: /mnt/hdd2/Immich
+              readOnly: true
+            - name: hdd2-nextcloud
+              mountPath: /mnt/hdd2/Nextcloud
+              readOnly: true
+            - name: hdd2-archivebox
+              mountPath: /mnt/hdd2/ArchiveBox
+              readOnly: true
+            - name: hdd2-kiwix
+              mountPath: /mnt/hdd2/Kiwix
+              readOnly: true
+            - name: hdd2-backups
+              mountPath: /mnt/hdd2/Backups
+              readOnly: true
+            - name: ssd1
+              mountPath: /mnt/ssd1
+            - name: ssd1-apps
+              mountPath: /mnt/ssd1/Apps
+              readOnly: true
+            - name: ssd2
+              mountPath: /mnt/ssd2
+            # The old 1TB NTFS disk, read-only: it is kept exactly as it was.
+            - name: hdd3
+              mountPath: /mnt/hdd3
+              readOnly: true
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            # A ceiling on both axes, as Immich has: Jellyfin keeps its CPU
+            # priority (k8s/jellyfin.yaml) and a runaway preview job stays a
+            # slow job, not an unusable board.
+            # 3Gi: Nextcloud Office's document server runs in this container
+            # too, a few hundred MB plus each open document.
+            limits:
+              memory: 3Gi
+              cpu: 1500m
+          # status.php answers for localhost, which the image puts in
+          # trusted_domains itself; the pod IP a probe would send is not.
+          readinessProbe:
+            httpGet:
+              path: /status.php
+              port: http
+              httpHeaders: [{ name: Host, value: localhost }]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /status.php
+              port: http
+              httpHeaders: [{ name: Host, value: localhost }]
+            # The first start copies Nextcloud into html/ and installs it on
+            # the Pi, which takes minutes. Killing it half way leaves a
+            # half-installed instance.
+            initialDelaySeconds: 900
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 6
+        # Nextcloud's background jobs, every five minutes, except in quiet
+        # hours: from midnight to six they wait, so the disks stay idle.
+        - name: cron
+          image: docker.io/library/nextcloud:34.0.5-apache@sha256:1f9212adecae32010cdbf137d7e0db78d08c696dc3e77f1eddcbf902d10209b4
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                h=$(date +%-H)
+                if [ "$h" -ge 6 ] && [ -f /var/www/html/cron.php ]; then
+                  php -f /var/www/html/cron.php
+                fi
+                sleep 300
+              done
+          securityContext:
+            runAsUser: 33
+            runAsGroup: 33
+          env:
+            - name: TZ
+              value: "__TZ__"
+            - name: PHP_MEMORY_LIMIT
+              value: 512M
+          volumeMounts:
+            - name: html
+              mountPath: /var/www/html
+            - name: data
+              mountPath: /var/www/html/data
+            # The admin's five disks (install-nextcloud.sh attaches them as
+            # external storage for the admin only). The HDDs are writable
+            # except the app folders, each mounted read-only on top at its
+            # real place: Jellyfin's library, torrents still seeding, Immich,
+            # other accounts' Nextcloud files, ArchiveBox, Kiwix and the vault
+            # backups. The SSD archive the same way, with Apps (every app's
+            # settings and database) read-only.
+            - name: hdd1
+              mountPath: /mnt/hdd1
+            - name: hdd1-jellyfin
+              mountPath: /mnt/hdd1/Jellyfin
+              readOnly: true
+            - name: hdd1-downloads
+              mountPath: /mnt/hdd1/Downloads
+              readOnly: true
+            - name: hdd2
+              mountPath: /mnt/hdd2
+            - name: hdd2-immich
+              mountPath: /mnt/hdd2/Immich
+              readOnly: true
+            - name: hdd2-nextcloud
+              mountPath: /mnt/hdd2/Nextcloud
+              readOnly: true
+            - name: hdd2-archivebox
+              mountPath: /mnt/hdd2/ArchiveBox
+              readOnly: true
+            - name: hdd2-kiwix
+              mountPath: /mnt/hdd2/Kiwix
+              readOnly: true
+            - name: hdd2-backups
+              mountPath: /mnt/hdd2/Backups
+              readOnly: true
+            - name: ssd1
+              mountPath: /mnt/ssd1
+            - name: ssd1-apps
+              mountPath: /mnt/ssd1/Apps
+              readOnly: true
+            - name: ssd2
+              mountPath: /mnt/ssd2
+            # The old 1TB NTFS disk, read-only: it is kept exactly as it was.
+            - name: hdd3
+              mountPath: /mnt/hdd3
+              readOnly: true
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 10m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+      volumes:
+        - name: html
+          hostPath:
+            path: __APPS_DIR__/Nextcloud/html
+            type: Directory
+        # type: Directory throughout: with the pool unmounted this path does
+        # not exist, and the pod waits at ContainerCreating instead of filling
+        # the SSD with family files.
+        - name: data
+          hostPath:
+            path: __POOL_DIR__/Nextcloud/data
+            type: Directory
+        - name: hdd1
+          hostPath:
+            path: __HDD1_DIR__
+            type: Directory
+        - name: hdd2
+          hostPath:
+            path: __HDD2_DIR__
+            type: Directory
+        - name: hdd1-jellyfin
+          hostPath:
+            path: __HDD1_DIR__/Jellyfin
+            type: Directory
+        - name: hdd1-downloads
+          hostPath:
+            path: __HDD1_DIR__/Downloads
+            type: Directory
+        - name: hdd2-immich
+          hostPath:
+            path: __HDD2_DIR__/Immich
+            type: Directory
+        - name: hdd2-nextcloud
+          hostPath:
+            path: __HDD2_DIR__/Nextcloud
+            type: Directory
+        - name: hdd2-archivebox
+          hostPath:
+            path: __HDD2_DIR__/ArchiveBox
+            type: Directory
+        - name: hdd2-kiwix
+          hostPath:
+            path: __HDD2_DIR__/Kiwix
+            type: Directory
+        - name: hdd2-backups
+          hostPath:
+            path: __HDD2_DIR__/Backups
+            type: Directory
+        - name: ssd1
+          hostPath:
+            path: __ARCHIVE_DIR__
+            type: Directory
+        # Empty, over the Apps folder inside /mnt/ssd1: it holds every other
+        # app's database and secrets, and Nextcloud is the most exposed app
+        # here. A PHP flaw in it should not read Vaultwarden or Gitea. Apps
+        # stays reachable over Samba.
+        - name: ssd1-apps
+          emptyDir: {}
+        # The mirror's backup SSD's leftover space (deploy/ssd-mirror.sh),
+        # not mirrored: shown to the admin as SSD2.
+        - name: ssd2
+          hostPath:
+            path: __SPARE_DIR__
+            type: Directory
+        - name: hdd3
+          hostPath:
+            path: __HDD3_DIR__
+            type: Directory
+---
+# Its own tailnet machine: https://cloud.<tailnet>.ts.net with a real
+# certificate, which the Nextcloud apps need.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cloud
+  namespace: pi
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: nextcloud
+      port:
+        name: http
+  tls:
+    - hosts: ["cloud"]

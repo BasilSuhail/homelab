@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- ArchiveBox: a storage box with a lid and a label, drawn to match
+       photos.svg and vault.svg. Same chassis grey, same slate outline, same
+       9px stroke. Warm brown for the label, which no other tile uses and
+       which reads as cardboard, not as storage or media. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- Body -->
+  <rect x="52" y="104" width="152" height="104" rx="12"
+        fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- Lid, wider than the body so it reads as a lid. -->
+  <rect x="38" y="62" width="180" height="44" rx="12"
+        fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- Label -->
+  <rect x="98" y="132" width="60" height="30" rx="8"
+        fill="#b5643c" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+</svg>

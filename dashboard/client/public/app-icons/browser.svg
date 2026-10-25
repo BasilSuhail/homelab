@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Browser: a window with a tab strip and a globe, drawn to match files.png.
+       Same chassis grey, same slate outline. Blue globe, so it reads apart
+       from the green Gitea and the amber vault. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- The window. -->
+  <rect x="26" y="40" width="204" height="176" rx="18" fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+  <!-- Title bar and its three dots. -->
+  <path d="M26 82 H230" stroke="#4a5359" stroke-width="9"/>
+  <circle cx="54" cy="61" r="7" fill="#4a5359"/>
+  <circle cx="78" cy="61" r="7" fill="#4a5359"/>
+  <circle cx="102" cy="61" r="7" fill="#4a5359"/>
+
+  <!-- The globe. -->
+  <circle cx="128" cy="149" r="46" fill="#4f8fd6" stroke="#4a5359" stroke-width="9"/>
+  <ellipse cx="128" cy="149" rx="19" ry="46" fill="none" stroke="#4a5359" stroke-width="7"/>
+  <path d="M82 149 H174 M89 126 H167 M89 172 H167" stroke="#4a5359" stroke-width="7" fill="none"/>
+</svg>

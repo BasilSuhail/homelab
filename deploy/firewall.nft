@@ -1,0 +1,51 @@
+#!/usr/sbin/nft -f
+# The home network may reach Jellyfin and nothing else. Everything else on
+# this machine is for the tailnet, which arrives on tailscale0 and is not
+# touched here.
+#
+# One chain at prerouting, before k3s' DNAT, so it covers both what this
+# machine answers itself (SSH, Samba, the agents, the k3s API) and what k3s
+# forwards into pods through hostPorts and NodePorts (Traefik on 80/443, the
+# NodePorts). An input-only rule would miss the second kind.
+#
+# Only physical interfaces are matched. Pods (cni0, veth*), the tailnet and
+# loopback pass untouched, so k3s, Tailscale and Kuma's checks keep working.
+#
+# Loaded by pi-firewall.service; deploy/install-firewall.sh installs both.
+
+# Declared, then deleted, then declared again: reloading replaces the table
+# instead of adding a second copy of every rule, and the first load does not
+# fail on a table that is not there yet.
+table inet pi-fw
+delete table inet pi-fw
+
+table inet pi-fw {
+	chain prerouting {
+		# After conntrack (-200), before k3s' DNAT (-100).
+		type filter hook prerouting priority -150; policy accept;
+		iifname "en*" jump home
+		iifname "wl*" jump home
+	}
+
+	chain home {
+		# Replies to connections this machine or a pod opened: updates, the
+		# VPN, Discord, Tailscale's own control traffic.
+		ct state established,related accept
+		ct state invalid drop
+
+		# Ping, and IPv6 neighbour discovery, which IPv6 cannot work without.
+		meta l4proto { icmp, ipv6-icmp } accept
+
+		# Address leases from the router: DHCP and DHCPv6.
+		udp dport { 68, 546 } accept
+
+		# Tailscale's direct path: devices at home reach the tailnet without
+		# going through a relay.
+		udp dport 41641 accept
+
+		# Jellyfin for the TV, the one app served to the home network.
+		tcp dport 8096 accept
+
+		counter drop
+	}
+}

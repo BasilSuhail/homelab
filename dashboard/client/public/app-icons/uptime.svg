@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Uptime Kuma: a vitals monitor, drawn to match files.png. Same chassis
+       grey, same slate outline, same diagonal screen highlight. Green rather
+       than blue, because the thing this tile reports is whether something is
+       alive. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- Stand, behind the case so the joins do not show. -->
+  <rect x="106" y="176" width="44" height="30" fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+  <rect x="64" y="198" width="128" height="24" rx="9" fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- Case -->
+  <rect x="26" y="38" width="204" height="148" rx="12" fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- Screen, with the lighter band across the top third. -->
+  <rect x="48" y="60" width="160" height="104" fill="#14a05a"/>
+  <path d="M48 60h160v30L48 108Z" fill="#22c46e"/>
+
+  <!-- The trace. Flat, one beat, flat: legible at 24px where a busy line is
+       just noise. -->
+  <path d="M60 124h30l12-30 16 58 14-34 10 16h42"
+        fill="none" stroke="#f2f4f5" stroke-width="9"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Power light, the one warm note. -->
+  <circle cx="215" cy="173" r="7" fill="#33a980"/>
+</svg>

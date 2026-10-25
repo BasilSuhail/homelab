@@ -1,0 +1,88 @@
+[
+  {
+    "name": "OSINT",
+    "url": "https://pi1.<tailnet>.ts.net/",
+    "nodeId": "pi1",
+    "icon": "/app-icons/osint.png"
+  },
+  {
+    "name": "OSINT News",
+    "url": "https://pi1.<tailnet>.ts.net/news",
+    "nodeId": "pi1",
+    "icon": "/app-icons/osint-news.png"
+  },
+  {
+    "name": "OSINT API",
+    "url": "https://pi1.<tailnet>.ts.net/api/docs",
+    "nodeId": "pi1",
+    "icon": "/app-icons/osint-api.png"
+  },
+  {
+    "name": "Uptime",
+    "url": "https://uptime.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/uptime.svg"
+  },
+  {
+    "name": "Vault",
+    "url": "https://vault.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/vault.svg"
+  },
+  {
+    "name": "Files",
+    "url": "#files",
+    "nodeId": null,
+    "icon": "/app-icons/files.png"
+  },
+  {
+    "name": "Photos",
+    "url": "https://photos.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/photos.svg"
+  },
+  {
+    "name": "Nextcloud",
+    "url": "https://cloud.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/cloud.svg"
+  },
+  {
+    "name": "ArchiveBox",
+    "url": "https://archivebox.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/archivebox.svg"
+  },
+  {
+    "name": "Browser",
+    "url": "https://homelab.<tailnet>.ts.net:8443/vnc.html?autoconnect=true&resize=scale&view_only=false",
+    "nodeId": "homelab",
+    "icon": "/app-icons/browser.svg"
+  },
+  {
+    "name": "Gitea",
+    "url": "https://git.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/gitea.svg"
+  },
+  {
+    "name": "Jellyfin",
+    "url": "https://jellyfin.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/jellyfin.svg"
+  },
+  {
+    "name": "Kiwix",
+    "url": "https://kiwix.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/kiwix.svg"
+  },
+  {
+    "name": "qBittorrent",
+    "url": "https://torrent.<tailnet>.ts.net/",
+    "nodeId": "homelab",
+    "icon": "/app-icons/qbittorrent.svg",
+    "switchable": true,
+    "check": false
+  }
+]

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Photos (Immich): a framed picture, drawn to match kiwix.svg and
+       vault.svg. Same chassis grey, same slate outline, same 9px stroke.
+       Blue, which is the one accent none of the neighbouring tiles uses —
+       vault is amber, uptime and qBittorrent are green, Jellyfin violet,
+       Kiwix teal. Hand-drawn here rather than taken from Immich's own mark,
+       so the tile row stays one set instead of eight different ones. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- Frame -->
+  <rect x="34" y="52" width="188" height="152" rx="18"
+        fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- Sun. Sits high left so the ridge line below reads as landscape. -->
+  <circle cx="86" cy="98" r="17" fill="#3f83c4" stroke="#4a5359" stroke-width="9"/>
+
+  <!-- Ridge, clipped to the frame so the peaks end at the mount rather than
+       running past it. -->
+  <clipPath id="frame">
+    <rect x="34" y="52" width="188" height="152" rx="18"/>
+  </clipPath>
+  <g clip-path="url(#frame)">
+    <path d="M34 186 L96 128 L134 166 L170 132 L222 186 L222 210 L34 210 Z"
+          fill="#3f83c4" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Frame again, over the ridge, so the rounded corners stay crisp. -->
+  <rect x="34" y="52" width="188" height="152" rx="18"
+        fill="none" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+</svg>

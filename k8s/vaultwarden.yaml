@@ -1,0 +1,156 @@
+# Vaultwarden: a Bitwarden-compatible server, on its own tailnet name.
+#
+# Deployed by deploy/install-vaultwarden.sh. Lives in the `pi` namespace
+# alongside the dashboard and Uptime Kuma.
+#
+# This holds a copy of a vault that lives elsewhere. Bitwarden's own service
+# stays the source of truth and is not touched; this is imported once and left
+# alone. Nothing here syncs, and nothing here should be relied on to be
+# current.
+#
+# Its files used to be a local-path PersistentVolumeClaim, which put them in
+# /var/lib/rancher/k3s/storage/pvc-<uuid>_pi_vaultwarden — a directory named
+# after a UUID, inside k3s' internals. For the most important file on the
+# board that is the wrong place: you cannot find it, and you cannot back up
+# what you cannot find. It is two named directories on two named drives now,
+# the same split every other app here uses.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaultwarden
+  namespace: pi
+spec:
+  replicas: 1
+  # ReadWriteOnce volume and SQLite: the old pod has to be gone before the new
+  # one starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vaultwarden
+  template:
+    metadata:
+      labels:
+        app: vaultwarden
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        - name: vaultwarden
+          image: vaultwarden/server:1.37.4-alpine@sha256:19ea2b669945d842dadc3d500f2d6a795866a003330f59a47b9634658bae98bb
+          ports:
+            # The image sets ROCKET_PORT=80 and listens there, rather than on
+            # the 8080 a container usually picks.
+            - name: http
+              containerPort: 80
+          envFrom:
+            # DOMAIN and SIGNUPS_ALLOWED. Written once by the installer rather
+            # than pinned here, so redeploying cannot silently reopen
+            # registration after it has been closed.
+            - configMapRef:
+                name: vaultwarden-config
+          env:
+            # Vaultwarden keeps db.sqlite3 next to attachments unless told
+            # otherwise. The database and the attachments are the data half
+            # and both belong on the 6TB; only rsa_key and the config live
+            # with the app.
+            - name: DATA_FOLDER
+              value: /data
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 10m
+            # Rust, and it idles near 40 MB. The ceiling is for a runaway.
+            limits:
+              memory: 256Mi
+          # Vaultwarden's own liveness endpoint, which answers without a login.
+          readinessProbe:
+            httpGet: { path: /alive, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /alive, port: http }
+            initialDelaySeconds: 45
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Capabilities are deliberately not stripped, and the container
+            # is deliberately still root. The image runs through a /start.sh
+            # wrapper, and Uptime Kuma taught us that guessing at what an
+            # entrypoint needs produces a crash loop that never reaches the
+            # application. This change moves where the files live and nothing
+            # else; running as the login user is a separate experiment worth
+            # doing with the container in front of you.
+            #
+            # The cost of that caution: db.sqlite3 is written 0600 root, so
+            # copying it out is a sudo job. Visible and findable, which is the
+            # thing it was not before; not yet hand-manageable.
+      volumes:
+  # A note on `type: Directory` below, which is doing real work.
+  #
+  # The alternative, DirectoryOrCreate, is the default reflex and it is wrong for
+  # a disk that can go away. With the 6TB unmounted, /srv/storage still exists —
+  # it is the mount point, an empty directory on the boot disk. DirectoryOrCreate
+  # would create the app's folders inside it, the app would start, find no
+  # database, and cheerfully build a new one on the boot SSD. Mount the 6TB again
+  # and the real data reappears underneath, with the app now pointed at a second
+  # copy it made while the disk was missing.
+  #
+  # Directory refuses. The app's subdirectory only exists when the disk is
+  # mounted, so an unmounted disk means the pod stops at ContainerCreating with
+  # the missing path named in its events. Loud and harmless, instead of quiet and
+  # not.
+        # SSD, under the archive: what the app is.
+        - name: config
+          hostPath:
+            path: __APPS_DIR__/Vaultwarden
+            type: Directory
+        # SSD, beside the settings. The vault is a few megabytes of SQLite
+        # read at random, which is the definition of what belongs on the fast
+        # disk — it sat on the 6TB to be findable, not because it was big.
+        #
+        # It has to be off the 6TB for a second reason now: qBittorrent mounts
+        # that whole disk so downloads can be hard-linked into place, and a
+        # torrent client with write access to a password vault is a bad trade
+        # for a convenience.
+        - name: data
+          hostPath:
+            path: __APPS_DIR__/Vaultwarden/data
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vaultwarden
+  namespace: pi
+spec:
+  selector:
+    app: vaultwarden
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# Its own tailnet machine, so it sits at a root path with a real certificate.
+# Bitwarden's clients refuse to talk to a server over plain HTTP, and the
+# browser extension will not accept a self-signed one, so this is not optional
+# decoration.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vault
+  namespace: pi
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: vaultwarden
+      port:
+        name: http
+  tls:
+    - hosts: ["vault"]

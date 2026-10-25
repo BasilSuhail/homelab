@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Cloud (Nextcloud): a cloud with three rings inside, drawn to match
+       photos.svg and vault.svg. Same chassis grey, same slate outline, same
+       9px stroke. Coral, the one accent the row does not use yet — photos
+       blue, vault amber, uptime and qBittorrent green, Jellyfin violet,
+       Kiwix teal, ArchiveBox brown. The rings nod to Nextcloud's own mark
+       without borrowing it. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- Cloud: four bumps over a flat base. -->
+  <path d="M70 184 A34 34 0 0 1 66 116 A52 52 0 0 1 160 90 A38 38 0 0 1 206 132 A27 27 0 0 1 192 184 Z"
+        fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- Rings, centred on the cloud's body. -->
+  <circle cx="96"  cy="148" r="14" fill="#e0714a" stroke="#4a5359" stroke-width="9"/>
+  <circle cx="160" cy="148" r="14" fill="#e0714a" stroke="#4a5359" stroke-width="9"/>
+  <circle cx="128" cy="148" r="21" fill="#e0714a" stroke="#4a5359" stroke-width="9"/>
+</svg>

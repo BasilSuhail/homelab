@@ -1,0 +1,49 @@
+# The Tailscale Kubernetes operator, so a Service can have a tailnet name of
+# its own rather than a path under the dashboard's.
+#
+# Why it exists here. The console owns `/` on pi2's tailnet name. Hanging
+# other apps off subpaths works only for apps written to expect it, and most
+# are not: single-page apps assume they own the root, and their websockets and
+# asset URLs break under a prefix. With the operator, an Ingress marked
+# `ingressClassName: tailscale` gets its own machine on the tailnet, a real
+# certificate, and a root path. Every service added after this one wants that.
+#
+# Installed through k3s' bundled helm-controller rather than a helm binary, so
+# nothing extra is needed on the board. Applied by
+# deploy/install-uptime-kuma.sh, which also creates the credentials below.
+#
+# Before this works, two things must exist in the Tailscale admin console:
+#
+#   1. Tag owners for `tag:k8s-operator` and `tag:k8s`, under Access Controls.
+#   2. An OAuth client, under Settings > OAuth clients, with write scopes for
+#      Devices Core and Auth Keys, tagged `tag:k8s-operator`.
+#
+# See docs/deploy.md.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: tailscale-operator
+  namespace: kube-system
+spec:
+  repo: https://pkgs.tailscale.com/helmcharts
+  chart: tailscale-operator
+  # Pinned. An operator that silently changes version underneath a homelab is
+  # how a working ingress stops working on a reboot.
+  version: 1.102.3
+  targetNamespace: tailscale
+  createNamespace: true
+  valuesContent: |-
+    # Deliberately empty. The chart writes a Secret from these values only when
+    # clientId is set, which would put the credentials in this file and in
+    # `kubectl get helmchart -o yaml` for anyone with cluster access. Left
+    # blank, the operator falls back to reading /oauth/client_id and
+    # /oauth/client_secret from a Secret named operator-oauth, which the
+    # installer creates directly and never writes to disk.
+    oauth:
+      clientId: ""
+      clientSecret: ""
+    operatorConfig:
+      # Matches the tag the OAuth client is granted. The operator tags itself
+      # with this, and tags every proxy it creates with tag:k8s.
+      defaultTags:
+        - "tag:k8s-operator"

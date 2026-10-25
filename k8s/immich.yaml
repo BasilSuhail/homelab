@@ -1,0 +1,535 @@
+# Immich: a photo library, and the thing the phone backs up to.
+#
+# Deployed by deploy/install-immich.sh. Lives in the `pi` namespace alongside
+# the dashboard, Uptime Kuma and Vaultwarden.
+#
+# Four containers, which is three more than anything else here runs, and each
+# one earns its place:
+#
+#   server            the API, the web interface, and the job workers
+#   machine-learning  CLIP for search, and face detection. CPU only
+#   postgres          the library index AND the vector search index
+#   valkey            the job queue
+#
+# The Postgres is a second database on the fleet and cannot be pi's. Immich
+# needs the VectorChord extension compiled in, which is what makes "a photo of
+# a bicycle" a query instead of a wish. Sharing was never on the table.
+#
+# No GPU. Issue #1 listed Immich as blocked on one for a year; Immich's own
+# requirements ask for 6GB of RAM, two cores, and nothing else. A GPU only
+# makes the indexing faster. pi2 has 13.7GB free and an idle CPU.
+#
+# __APPS_DIR__ and __DATA_DIR__ are substituted by the installer, the same way
+# jellyfin.yaml and vaultwarden.yaml do it. hostPath rather than a
+# PersistentVolumeClaim, for the reason install-media.sh spells out: a
+# local-path volume lands in /var/lib/rancher/k3s/storage/pvc-<uuid>_<ns>_<name>
+# and a directory named after a UUID cannot be found in Finder, cannot be
+# backed up without knowing k3s, and cannot tell you what is eating the disk.
+#
+# enableServiceLinks: false, on all four pods. This is not tidying — without it
+# nothing here starts at all.
+#
+# The kubelet still injects Docker-link-era environment variables for every
+# Service in the namespace: a Service named `immich` becomes IMMICH_PORT,
+# IMMICH_SERVICE_HOST, IMMICH_PORT_80_TCP and so on, in every pod in `pi`.
+# IMMICH_PORT is also the name of Immich's own listening-port setting, which
+# expects a number. It gets `tcp://10.43.x.x:80` instead and the process exits
+# on its first line:
+#
+#   Error: Invalid environment variables:
+#     - [IMMICH_PORT] Invalid input: expected number, received NaN
+#
+# Both Immich containers read that variable, so both crash-loop while Postgres
+# and Valkey, which have never heard of it, come up fine. The collision comes
+# from the Service name meeting the app's own vocabulary, so it would survive
+# any amount of staring at the app's config.
+#
+# Turning the links off is the fix rather than renaming the Service, because
+# the next collision is already latent: name anything in this namespace `redis`
+# and REDIS_PORT arrives as a URL too. Nothing here needs the injected
+# variables — every address below is a DNS name.
+#
+# The two ports are also set explicitly, which is belt and braces: an explicit
+# env entry wins over an injected one, so the containers survive someone
+# turning service links back on.
+#
+# The budget, and why every container has a ceiling on both axes.
+#
+# pi2 has 4 cores and 15.8GB, and the point of this file is that Immich never
+# gets to use all of either. Limits are cgroup ceilings, enforced by the kernel
+# rather than promised by the app:
+#
+#              CPU limit    memory limit
+#   server       1500m          4Gi
+#   ml           1000m          3Gi
+#   postgres      500m          1Gi
+#   valkey        100m        256Mi
+#   ------------------------------------
+#   total         3100m       8.25Gi   of 4000m and 15.8GB
+#
+# That leaves roughly nine tenths of a core and 7.5GB that Immich cannot touch,
+# no matter what it does, which is what k3s, the metrics agent, the console,
+# Jellyfin and Kiwix keep running out of. A runaway indexing job is a slow
+# indexing job here, not an unusable board.
+#
+# The CPU numbers are the ones worth arguing about. Indexing is a batch job:
+# give it four cores and it takes four cores for as long as the queue lasts.
+# Capping the ML container at one core makes a backfill take roughly four times
+# longer and costs nothing else, because nobody is waiting on it. The server
+# gets more, 1500m, because it answers the phone and the browser and a
+# throttled request is a request that feels slow.
+#
+# Raising the ML ceiling is the one knob worth turning if a first import is
+# painfully slow. It is a single number and nothing else depends on it.
+#
+# Deliberately NOT a ResourceQuota on the namespace. `pi` also holds the
+# console, Uptime Kuma, Vaultwarden, Jellyfin, Kiwix and qBittorrent, and a
+# quota on memory or CPU makes the API server reject every pod in the namespace
+# that does not declare both — which would break the running apps at the next
+# restart rather than at apply time. With four fixed containers the sum above
+# is already bounded by the per-container limits, so a quota would add a
+# footgun and no ceiling.
+#
+# Disk has no cgroup equivalent here. The photos land on a 6TB with 5.9TB free
+# and nothing in this file caps that; the lever is Immich's own per-user
+# storage quota, set in Administration > Users, which is the right place for it
+# because it is a policy about people rather than about containers.
+#
+# Why not the official Helm chart. There is one, immich-app/immich-charts, and
+# it is actively maintained. It does not fit here for two reasons. It ships no
+# database at all — the values file leaves DB_HOSTNAME for you to fill in and
+# its examples point at a CloudNativePG cluster, so adopting it would mean
+# running a Postgres operator on pi2 or hand-writing this Postgres anyway. And
+# its library volume is `existingClaim`: "automatically creating the library
+# volume is not supported by this chart", which forces the photo library into a
+# PersistentVolumeClaim — the exact thing #113 moved the vault out of. The
+# chart also runs an Alpine Valkey, which is the image family Immich's own
+# Kubernetes page warns about for musl DNS resolution. Every image below is
+# Debian-based, checked rather than assumed, so that caveat does not apply.
+#
+# Every hostPath below is `type: Directory`, never DirectoryOrCreate. With the
+# 6TB unmounted, /srv/storage still exists as an empty mount point on the boot
+# disk. DirectoryOrCreate would create the photo tree inside it, Immich would
+# start, find an empty library, and begin filling the boot SSD — and remounting
+# the 6TB would hide that second copy underneath the real one. Directory
+# refuses instead: the pod stops at ContainerCreating with the missing path in
+# its events. Loud and harmless.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-postgres
+  namespace: pi
+spec:
+  selector:
+    app: immich-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-postgres
+  namespace: pi
+spec:
+  replicas: 1
+  # One data directory on a ReadWriteOnce path: the old pod has to be gone
+  # before the new one starts, or two postgres processes fight over the same
+  # WAL and the loser corrupts it.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: immich-postgres
+  template:
+    metadata:
+      labels:
+        app: immich-postgres
+    spec:
+      # See the note at the top of this file. Without it the kubelet sets
+      # IMMICH_PORT to a URL and Immich refuses to start.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        - name: postgres
+          # Pinned by digest as well as tag, which is how Immich publishes it.
+          # This image is not stock Postgres: it carries VectorChord and
+          # pgvecto.rs, and swapping it for postgres:14 gives a server that
+          # starts, accepts connections, and then fails every search.
+          image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_DB
+              value: immich
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-db
+                  key: password
+            # Checksums cost a few percent and turn silent corruption into a
+            # loud error. On a board whose database is not backed up anywhere,
+            # finding out is worth more than the percent.
+            - name: POSTGRES_INITDB_ARGS
+              value: "--data-checksums"
+            # The default assumes the data directory is on an SSD, and here it
+            # is — __APPS_DIR__ is on the SSD mirror. If this ever moves to an HDD, set
+            # this to HDD or every query pays for the wrong random_page_cost.
+            - name: DB_STORAGE_TYPE
+              value: SSD
+          volumeMounts:
+            - name: db
+              mountPath: /var/lib/postgresql/data
+            # Postgres wants shared memory for parallel queries and hash joins.
+            # A container gets 64MB by default; compose asks for 128MB, and an
+            # emptyDir on Memory is how you say the same thing here.
+            - name: shm
+              mountPath: /dev/shm
+          # 2Gi: shared_buffers is 512MB and, like the Memory emptyDir above,
+          # counts against this limit. At 1Gi the 3.3.5 upgrade's migrations
+          # pushed it over and the kernel killed Postgres mid-migration.
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 50m
+            limits:
+              memory: 2Gi
+              cpu: 500m
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "immich"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "immich"]
+            initialDelaySeconds: 90
+            periodSeconds: 30
+      volumes:
+        # SSD. A database is thousands of small random reads, which is the one
+        # workload a spinning disk is worst at: ~5ms a seek against ~0.1ms.
+        # install-media.sh made this same call for Jellyfin's index.
+        - name: db
+          hostPath:
+            path: __APPS_DIR__/Immich/db
+            type: Directory
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-redis
+  namespace: pi
+spec:
+  selector:
+    app: immich-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-redis
+  namespace: pi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: immich-redis
+  template:
+    metadata:
+      labels:
+        app: immich-redis
+    spec:
+      # See the note at the top of this file. Without it the kubelet sets
+      # IMMICH_PORT to a URL and Immich refuses to start.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        - name: redis
+          image: docker.io/valkey/valkey:9@sha256:8e8d64b405ce18f41b8e5ee20aa4687a8ed0022d1298f2ce31cdcf3a76e09411
+          ports:
+            - name: redis
+              containerPort: 6379
+          # Deliberately no volume. This is a job queue, not storage: what it
+          # holds is "these twenty photos still need thumbnails". Losing it on
+          # a restart loses queued work, which the admin Jobs page can re-run
+          # with one click. Persisting it would buy nothing and keep a disk
+          # awake for writes nobody would miss.
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 256Mi
+              cpu: 100m
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-machine-learning
+  namespace: pi
+spec:
+  selector:
+    app: immich-machine-learning
+  ports:
+    - name: http
+      port: 3003
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-machine-learning
+  namespace: pi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: immich-machine-learning
+  template:
+    metadata:
+      labels:
+        app: immich-machine-learning
+    spec:
+      # See the note at the top of this file. Without it the kubelet sets
+      # IMMICH_PORT to a URL and Immich refuses to start.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        - name: machine-learning
+          # The plain tag, not one of the -armnn / -cuda / -rknn variants.
+          # ARM NN would use the Pi's GPU for some of this, but it is a
+          # different image and a separate experiment; CPU works today and the
+          # board is idle.
+          image: ghcr.io/immich-app/immich-machine-learning:v3.3.5
+          ports:
+            - name: http
+              containerPort: 3003
+          env:
+            # Models unload after five minutes with nothing to do. This is the
+            # default and it is worth not losing: it is the difference between
+            # ~1GB resident all day and ~1GB only while the queue is draining.
+            # Its default. Explicit so an injected IMMICH_PORT can never win.
+            - name: IMMICH_PORT
+              value: "3003"
+            - name: MACHINE_LEARNING_MODEL_TTL
+              value: "300"
+            # One worker. Four cores, and the server's own job workers want
+            # some of them; a second ML worker would double peak memory to win
+            # nothing on a machine this size.
+            - name: MACHINE_LEARNING_WORKERS
+              value: "1"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /cache
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 50m
+            # Idles near nothing once the models unload. The ceiling is for a
+            # backfill: CLIP and the face model loaded at once, on a large
+            # image, is the peak this has to survive.
+            limits:
+              memory: 3Gi
+              # One core. This is the container that would otherwise eat the
+              # board: indexing is a batch job that will happily saturate all
+              # four for as long as there is a queue. Throttling a batch job is
+              # free in every way that matters — the backfill takes longer and
+              # nothing else on pi2 notices it is running.
+              cpu: 1000m
+          readinessProbe:
+            httpGet: { path: /ping, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /ping, port: http }
+            # Generous on purpose. A cold model load on four ARM cores takes
+            # far longer than the web-app default anyone would copy here, and
+            # a liveness probe that fires during it produces a crash loop that
+            # looks like a broken image.
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            timeoutSeconds: 10
+      volumes:
+        # SSD. Downloaded model weights — a few hundred MB, read at start-up.
+        # On the 6TB this would spin the disk up every time a model loads.
+        - name: model-cache
+          hostPath:
+            path: __APPS_DIR__/Immich/model-cache
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich
+  namespace: pi
+spec:
+  selector:
+    app: immich-server
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-server
+  namespace: pi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: immich-server
+  template:
+    metadata:
+      labels:
+        app: immich-server
+    spec:
+      # See the note at the top of this file. Without it the kubelet sets
+      # IMMICH_PORT to a URL and Immich refuses to start.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        - name: server
+          image: ghcr.io/immich-app/immich-server:v3.3.5
+          ports:
+            - name: http
+              containerPort: 2283
+          env:
+            # Its default. Explicit so an injected IMMICH_PORT can never win.
+            - name: IMMICH_PORT
+              value: "2283"
+            - name: DB_HOSTNAME
+              value: immich-postgres
+            - name: DB_USERNAME
+              value: postgres
+            - name: DB_DATABASE_NAME
+              value: immich
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-db
+                  key: password
+            - name: REDIS_HOSTNAME
+              value: immich-redis
+            - name: IMMICH_MACHINE_LEARNING_URL
+              value: http://immich-machine-learning:3003
+          envFrom:
+            # TZ, written once by the installer from the board's own clock.
+            # Without it the nightly tasks and both cron schedules run in UTC,
+            # so "06:00" silently means something else. Not pinned here
+            # because the timezone belongs to the board, not to the repo.
+            - configMapRef:
+                name: immich-config
+          volumeMounts:
+            - name: photos
+              mountPath: /data
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 100m
+            # 4Gi. 2Gi was tried first and was too small: this one process
+            # also runs the job workers, and a library backfill — thumbnails
+            # and video transcodes for 7,000+ assets — was OOMKilled at 2Gi
+            # mid-run, taking the web interface down with it each time.
+            #
+            # Deliberately not more than 4Gi, because of the bug below.
+            #
+            # immich-app/immich#26162 is open and unfixed: the api process
+            # grows until the cgroup kills it at 95-97% of whatever limit it
+            # was given, reproduced by one reporter at both 4g and 6g. The
+            # growth is native, not JS heap — that reporter measured a V8 heap
+            # limit of 2.24GB against an RSS of 5.8GB — so NODE_OPTIONS and
+            # --max-old-space-size do not touch it. It is suspected to be a
+            # client retry loop against an asset that can never succeed, and
+            # it is correlated with large libraries and an iOS client backing
+            # up, which is this deployment exactly.
+            #
+            # Raising the ceiling therefore buys nothing: the process grows to
+            # fill it either way, and a bigger number only means a longer wait
+            # and a larger hole in the board when it goes. A modest limit turns
+            # the bug into a container restart that kubelet handles in seconds,
+            # while the other three containers carry on. This is the one place
+            # where k3s is strictly better than the compose file everyone in
+            # that thread is running.
+            #
+            # Symptom to watch for: immich-server accumulating restarts with
+            # OOMKilled as the last state, on a board that is otherwise idle.
+            # That is the bug, not a misconfiguration here.
+            limits:
+              memory: 4Gi
+              # 1.5 cores. More generous than the ML container because this one
+              # answers the phone and the browser, and a throttled request is a
+              # request that feels slow. Still a hard ceiling: thumbnailing and
+              # video transcoding both live here and both would take the whole
+              # board if allowed.
+              cpu: 1500m
+          readinessProbe:
+            httpGet: { path: /api/server/ping, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /api/server/ping, port: http }
+            # The first start runs database migrations against an empty
+            # Postgres, on ARM. Slow, and killing it half way leaves a schema
+            # that is neither the old one nor the new one. 300s was not enough
+            # on pi2 — the api worker initialises websockets and then sits in
+            # migration I/O for minutes more before binding port 2283.
+            initialDelaySeconds: 600
+            periodSeconds: 30
+            timeoutSeconds: 10
+      volumes:
+        # The 6TB. Photos and videos: large, written once, read start to
+        # finish. Exactly what a spinning disk is good at, and 5.9TB of it.
+        - name: photos
+          hostPath:
+            path: __DATA_DIR__/Immich
+            type: Directory
+---
+# Its own tailnet machine, so it answers at a root path with a real
+# certificate. The mobile app will talk to a bare IP over plain HTTP, but then
+# every photo you own crosses the network unencrypted and the app has to be
+# reconfigured whenever DHCP moves the board.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: photos
+  namespace: pi
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: immich
+      port:
+        name: http
+  tls:
+    - hosts: ["photos"]
+# No body-size annotation, deliberately. The tailscale IngressClass is not
+# Traefik: the operator runs its own proxy pod that forwards straight to the
+# Service, so a traefik.ingress.kubernetes.io middleware here would be
+# accepted, ignored, and quietly misleading. Upload limits are Immich's own.
