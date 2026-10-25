@@ -129,14 +129,17 @@ More: [`docs/storage.md`](docs/storage.md).
 
 ## The console
 
-<img src="docs/images/console-status.png" alt="The console's Status tab: each app, who is using it, and the User data list open" />
+<img src="docs/images/console-server.png" alt="The console's Server tab on the real PC: CPU per thread, temperature and power, GPU, drives, fans and the top processes" />
+
+<img src="docs/images/console-status.png" alt="The console's Status tab with demo data: each app, who is using it, and the User data list open" />
 
 A dashboard written for this box: a `node:http` server and a Preact client,
 one runtime dependency. Its tabs:
 
-- **Server**: CPU, memory, every drive, GPU, temperatures, power draw and the
-  fans, which it can also set.
-- **Status**: each app and who is on it right now, the library sizes, the
+- **Server** (the real PC, above): CPU per thread, memory, every drive, the GPU,
+  temperatures, power draw, the fans (which it can also set) and the busiest
+  processes.
+- **Status** (demo data, below it): each app and who is on it right now, the library sizes, the
   torrent and VPN switch, and the **Users** line: *User data* (how many people,
   who has an account in which app) and *User activity history* (who used what,
   and when, over two days).
