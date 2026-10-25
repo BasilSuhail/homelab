@@ -142,8 +142,6 @@ First visit asks you to create an admin account. Then, in this order:
        Apps          Nextcloud with its Postgres and Redis, Vaultwarden,
                      Kiwix, ArchiveBox, Gitea, Jellyfin on the TV's port.
        The PC        ping, SSH, Samba, cluster DNS, the internet and its DNS.
-       Job bot       a push from the bot while its browser and profiles are
-                     fine, and the live view's page on its in-cluster name.
 
 One trap worth knowing when adding a monitor. MagicDNS does not resolve inside a pod, so
 a monitor cannot simply be given a service's .ts.net name. The hostAliases in

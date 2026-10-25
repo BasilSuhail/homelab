@@ -19,7 +19,7 @@ CLAUDE="$HOME/.local/bin/claude"
 echo "==> ~/Workspace"
 WORKSPACE="$HOME/Workspace"
 mkdir -p "$WORKSPACE"
-for repo in PI ApplyPilot folders; do
+for repo in homelab; do
   [ -e "$HOME/$repo" ] && ln -sfn "$HOME/$repo" "$WORKSPACE/$repo"
 done
 ls "$WORKSPACE" | sed 's/^/  /'

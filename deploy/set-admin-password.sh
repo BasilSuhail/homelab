@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
-# One admin password for the three tools that have none of their own:
-# the console, the browser live view, and qBittorrent's web page.
+# One admin password for the two tools that have none of their own:
+# the console and qBittorrent's web page.
 #
 #   sudo bash deploy/set-admin-password.sh
 #
 # Asks for it twice and never prints it. Run it again to change it.
 #
 #   console      any user name, this password
-#   live view    this password, first 8 characters only (VNC's own limit)
 #   qBittorrent  its existing user name (admin if none), this password
 set -euo pipefail
 
 [ "$(id -u)" -eq 0 ] || { echo "run with sudo" >&2; exit 1; }
 
 kube() { k3s kubectl "$@"; }
-OWNER="${SUDO_USER:-homelab}"
-OWNER_HOME="$(getent passwd "$OWNER" | cut -d: -f6)"
-OWNER_UID="$(id -u "$OWNER")"
 APPS_DIR="${APPS_DIR:-/1) Archive/Apps}"
 QBT_CONF="$APPS_DIR/qBittorrent/qBittorrent/qBittorrent.conf"
 
@@ -32,42 +28,6 @@ printf '%s' "$PW" | kube -n pi create secret generic pi-console-login \
 kube -n pi rollout restart deployment/pi-console >/dev/null
 kube -n pi rollout status deployment/pi-console --timeout=180s >/dev/null
 echo "  set"
-
-echo "==> Live view"
-# x11vnc only takes the password on its command line, so it sits in argv for
-# the moment it takes to write the file. The file is the owner's alone.
-as_owner() { sudo -u "$OWNER" XDG_RUNTIME_DIR="/run/user/$OWNER_UID" "$@"; }
-as_owner install -d -m 700 "$OWNER_HOME/.vnc"
-as_owner x11vnc -storepasswd "$PW" "$OWNER_HOME/.vnc/passwd" >/dev/null 2>&1
-chmod 600 "$OWNER_HOME/.vnc/passwd"
-if kube -n applypilot get deployment applypilot >/dev/null 2>&1; then
-  # In the bot's container (k8s/applypilot.yaml): the file goes into its
-  # Secret, and once the mounted copy has changed, VNC alone restarts. The pod
-  # does not, so a running round carries on.
-  kube -n applypilot create secret generic applypilot-vnc --from-file="passwd=$OWNER_HOME/.vnc/passwd" \
-    --dry-run=client -o yaml | kube apply -f - >/dev/null
-  want=$(md5sum <"$OWNER_HOME/.vnc/passwd")
-  # Secrets reach a running pod within a minute or two.
-  for _ in $(seq 1 60); do
-    got=$(kube -n applypilot exec deploy/applypilot -- sh -c 'md5sum </etc/applypilot/vnc/passwd' 2>/dev/null || true)
-    [ "$got" = "$want" ] && break
-    sleep 3
-  done
-  kube -n applypilot exec deploy/applypilot -- services restart vnc >/dev/null
-  echo "  set (first 8 characters)"
-else
-DROPIN="$OWNER_HOME/.config/systemd/user/applypilot-vnc.service.d"
-as_owner install -d -m 755 "$DROPIN"
-# The unit's own command, with -nopw swapped for the password file.
-as_owner tee "$DROPIN/password.conf" >/dev/null <<'UNIT'
-[Service]
-ExecStart=
-ExecStart=/usr/bin/x11vnc -display :99 -localhost -rfbport 5900 -forever -shared -rfbauth %h/.vnc/passwd -quiet
-UNIT
-as_owner systemctl --user daemon-reload
-as_owner systemctl --user restart applypilot-vnc
-echo "  set (first 8 characters)"
-fi
 
 echo "==> qBittorrent"
 if [ -f "$QBT_CONF" ]; then

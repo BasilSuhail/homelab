@@ -250,12 +250,6 @@ echo "==> Retiring the systemd unit"
 sudo systemctl disable --now pi-console.service 2>/dev/null || true
 sudo tailscale serve reset
 sudo tailscale serve --bg 80
-# The reset above also drops the job bot's live view (noVNC on :6080), which browsers only
-# allow clicks on over https: put it back on 8443. In its container it is a Service
-# (k8s/applypilot.yaml); before that, a listener on the tailnet address.
-LIVE_IP=$(kube -n applypilot get svc liveview -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
-[ -n "$LIVE_IP" ] || LIVE_IP=$(ss -Hltn 'sport = :6080' | awk '{print $4}' | sed 's/:6080$//' | grep -m1 '^100\.' || true)
-[ -n "$LIVE_IP" ] && sudo tailscale serve --bg --https=8443 "http://$LIVE_IP:6080" >/dev/null
 sudo tailscale serve status
 
 echo
