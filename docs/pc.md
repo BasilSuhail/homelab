@@ -90,8 +90,7 @@ Set once, with a screen, and not to be revisited:
 Debian 13 (trixie), amd64. The login user is `homelab`, with passwordless `sudo`
 because the `make` targets run `sudo` without a terminal. That stays, by
 decision (issue #204, item 7): nothing that reads untrusted content runs as
-`homelab`. The job bot is in its own container (below) and the Discord bot is
-its own user, `pi-bot`.
+`homelab`. The Discord bot is its own user, `pi-bot`.
 
 The installer put GNOME on despite the task being unticked. Its login screen
 suspended the machine after twenty idle minutes, which looked like crashes.
@@ -120,10 +119,9 @@ each is a script in `deploy/`, run with `sudo` on homelab, and safe to re-run.
 | Updates | Debian's security pocket only, every morning (`apt-daily-upgrade`, 07:00 plus up to two hours after `make quiet`). Tailscale's repository is left out, since upgrading it drops every tailnet connection. Never reboots; a new kernel waits for a reboot by hand | `install-security-updates.sh` |
 | SSH | Drop-in `/etc/ssh/sshd_config.d/10-pi-hardening.conf`: no root login, no X11, 3 tries. `--keys-only` also turns passwords off. sshd is reloaded, so open sessions survive | `install-ssh-hardening.sh` |
 | Console | Passkey (Face ID / Touch ID) or the admin password; `/healthz` is the only open path. `passkeys-only` / `password-too` | `console-login.sh` |
-| Admin password | One password for the console, the live view (first 8 characters, VNC's limit) and qBittorrent. Asked twice, never printed | `set-admin-password.sh` |
+| Admin password | One password for the console and qBittorrent. Asked twice, never printed | `set-admin-password.sh` |
 | File agent | The shim's file and fan routes need `X-Agent-Token`; the token is `/etc/pi/agent-token`, root-only, made by `agent/install.sh`, copied into the console's `pi-console-agent` Secret by `install-dashboard-k8s.sh`. `/metrics` stays open for Kuma. Glances listens on loopback only | `agent/install.sh` |
 | Discord bot | Its own user, `pi-bot`; root only through fixed `sudo` calls | `install-pi-bot.sh` |
-| Job bot's browser | In the container: a managed policy (`applypilot/chrome-policy.json`) refuses `file://`, loopback, `ts.net`, `cluster.local` and the router, and the network policy refuses every non-public range. On the host, `install-browser-guard.sh` writes the same block with this machine's own addresses; re-run it if they change | image, `install-browser-guard.sh` |
 | Jellyfin on the internet | Bouncer, account locks, admin from home or the tailnet only: see [build-log](build-log.md#jellyfins-door-to-the-internet) | `install-jellyfin-edge.sh`, `jellyfin-accounts.py` |
 
 Images updated in the audit are pinned by digest as well as tag (Jellyfin,
@@ -155,20 +153,6 @@ encodes H.264 and HEVC; it has no AV1.
 3GB of the 4GB, unloaded after ten idle minutes. It shares the card with
 Jellyfin through the same runtime, with no device plugin, so neither holds it.
 It answers in its own Discord channel through `pi-bot`, read-only.
-
-The job bot (ApplyPilot) runs in a container of its own, `k8s/applypilot.yaml`,
-built on the PC from `applypilot/` by `deploy/install-applypilot.sh`:
-
-| | |
-|---|---|
-| User | `applypilot`, uid 1500, no sudo, no Kubernetes token, read-only image, no capabilities |
-| Sees | its code read-only (`~/ApplyPilot`), its data (`~/.applypilot`, `/srv/hdd2/ApplyPilot`), its Gmail login. Its own home is `/srv/hdd2/ApplyPilot/home`, mounted at the owner's home path so stored paths still work |
-| Network | out to the internet only; every non-public range is refused. In: only the PC (for `tailscale serve`) and Uptime Kuma, on the live-view port |
-| Inside | Xvfb `:99`, openbox, tint2, x11vnc, noVNC on 6080, the home browser, the Kuma health push and the Discord email alerts, kept up by runit (`services`) |
-| Live view | `tailscale serve` on 8443 to the `liveview` Service; same admin password |
-| File access | ACLs give uid 1500 the owner's permissions on its folders; other entries keep what they had (`deploy/applypilot-acl.py`, old ACLs in `/var/backups/`) |
-
-Chrome runs with its sandbox, which needs seccomp `Unconfined` in the pod.
 
 ---
 

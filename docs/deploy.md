@@ -28,7 +28,7 @@ Three consequences worth knowing:
   push, pull.
 - **Check users first.** `sudo pi-when now` says who is watching, uploading or
   using which app. If someone is on the app being touched, wait.
-- **It builds on the PC.** The console, the job bot and the local AI are
+- **It builds on the PC.** The console and the local AI are
   images built with buildkit straight into k3s' containerd: no registry, no
   copy. The tag is the commit, because reusing a tag under
   `imagePullPolicy: IfNotPresent` leaves the old image in place and reports
@@ -74,11 +74,9 @@ ssh homelab 'bash ~/PI-copy/deploy/install-dashboard-k8s.sh ~/PI-copy/dashboard'
 
 ```
 https://homelab.<tailnet>.ts.net        → Traefik on :80, the console
-https://homelab.<tailnet>.ts.net:8443   → the live view's Service, :6080
 ```
 
-`make dashboard-k8s` sets the first; `deploy/install-applypilot.sh` the
-second. Every other app has its own tailnet name from the Tailscale operator:
+`make dashboard-k8s` sets it. Every other app has its own tailnet name from the Tailscale operator:
 any Service with an Ingress marked `ingressClassName: tailscale` gets one,
 with a real certificate. Jellyfin is also on Funnel; see the README.
 

@@ -20,13 +20,6 @@ const nowLine = (uses: ActiveUse[]): string | null => {
   return `${u.who} is ${what}${uses.length > 1 ? ` · +${uses.length - 1} more` : ''}`;
 };
 
-/** The live-view browser lists everyone on it, not just the first: the job
- *  bot, a Claude agent session and each device watching can overlap. */
-const browserLine = (uses: ActiveUse[]): string | null =>
-  uses.length
-    ? uses.map((u) => (u.who === 'User' ? `${u.device} is ${u.what}` : `${u.who} is ${u.what}`)).join(' · ')
-    : null;
-
 /** "2 downloading · 1 stalled · 0 seeding · 0 stopped", plus queued and errors when there are any. */
 const qbitLine = (c: TorrentCounts): string =>
   [
@@ -329,16 +322,6 @@ export const StatusView = ({ apps }: { apps: AppTile[] }) => {
             <div class="slist">
               <Row name="OSINT" app={app('OSINT')} letter="O" accent="blue" canOpen={!!app('OSINT')?.healthy} {...osint('OSINT')} />
               <Row name="OSINT News" app={app('OSINT News')} letter="N" accent="blue" canOpen={!!app('OSINT News')?.healthy} {...osint('OSINT News')} />
-            </div>
-          </div>}
-
-          {app('Browser') && <div class="sgrp">
-            <h3>Browser</h3>
-            <div class="slist">
-              <Row name="Browser" app={app('Browser')} letter="B" accent="blue"
-                sub={app('Browser')?.healthy === false ? 'Not answering' : browserLine(uses('Browser')) ?? 'Free · open to use it'}
-                tone={app('Browser')?.healthy === false ? 'bad' : uses('Browser').length ? 'busy' : null}
-                value={uses('Browser').length ? [...new Set(uses('Browser').map((u) => u.who))].join(' · ') : 'Free'} />
             </div>
           </div>}
 

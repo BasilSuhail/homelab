@@ -176,9 +176,7 @@ Server tab stays empty without Tailscale and an agent; that is expected.
 | [`Makefile`](Makefile) | the deploy commands; `make` on its own lists them |
 | [`docs/`](docs) | [running it](docs/operations.md), [the PC](docs/pc.md), [storage](docs/storage.md), [deploying](docs/deploy.md), [the console](docs/dashboard.md), [the build log](docs/build-log.md) |
 
-Not in here: the job-search bot's container, which lives with the bot (see
-[applypilot-showcase](https://github.com/BasilSuhail/applypilot-showcase)), and
-the private repo's history and issues.
+Not in here: the private repo's history and issues.
 
 ## Using it on your own machine
 

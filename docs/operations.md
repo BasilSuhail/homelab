@@ -83,7 +83,6 @@ phone with Tailscale on. They are tiles in the console's Apps tab.
 | qBittorrent | `torrent.<tailnet>.ts.net` | `make torrent` — off by default |
 | ArchiveBox | `archivebox.<tailnet>.ts.net` | `make archivebox` |
 | Gitea | `git.<tailnet>.ts.net` | `make gitea` |
-| Live view | `homelab.<tailnet>.ts.net:8443` | the job bot's browser, `deploy/install-applypilot.sh` |
 | Local AI | Discord | `make ai`, answers in its own channel through `pi-bot` |
 
 <details>
@@ -200,7 +199,7 @@ What each does: [`storage.md`](storage.md).
 <summary><strong>Console — signing in, and the Tailscale client</strong></summary>
 
 **Signing in.** Face ID / Touch ID (passkeys), or the admin password as a
-backup. One password covers the console, the live view and qBittorrent; set
+backup. One password covers the console and qBittorrent; set
 or change it on homelab:
 
 ```bash
@@ -239,7 +238,7 @@ make uptime
 Puts Uptime Kuma 2.x on homelab at its own tailnet name,
 `https://uptime.<tailnet>.ts.net`, so it does not have to share the console's
 URL. 21 monitors today: the drives, the apps, the PC's ping, SSH and Samba,
-DNS, the internet, and the job bot's browser.
+DNS and the internet.
 
 **Once, in the Tailscale admin console, before the first run.** The operator
 registers machines on your tailnet, so it needs its own credentials:
@@ -395,8 +394,7 @@ The whole 6TB is mounted for the same reason: a finished download is
 hard-linked into place, and a hard link cannot cross a mount boundary. Two
 mounts would mean a 40GB film costing 80GB for as long as it kept seeding.
 
-**Login.** The web page uses the admin password shared with the console and
-the live view, and keeps qBittorrent's existing user name (`admin` if none).
+**Login.** The web page uses the admin password shared with the console, and keeps qBittorrent's existing user name (`admin` if none).
 Set or change it on homelab:
 
 ```bash

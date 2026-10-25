@@ -886,118 +886,11 @@ def jellyfin_get(ip, key, path, timeout=8):
         return None
 
 
-# The live-view browser (noVNC on :6080, showing the virtual screen :99) and the
-# job bot run in their own container as this user (k8s/applypilot.yaml); before
-# that, as the owner, whose Claude sessions can still drive a browser of their own.
-BROWSER_USERS = ("applypilot", "homelab")
-LIVEVIEW_PORT = 6080
-# A live-view tab left open streams forever, so an open connection is not
-# someone watching. Someone is, while the screen has had a click or a key
-# from it this recently. The job bot drives Chrome directly, not through the
-# screen, so it never counts as a click.
-LIVEVIEW_IDLE = 600
-# The virtual screen's idle time, from X itself (MIT-SCREEN-SAVER), inside the
-# job bot's container: it has python3 and libXss, not xprintidle.
-X_IDLE = r"""
-import ctypes
-x = ctypes.cdll.LoadLibrary("libX11.so.6"); s = ctypes.cdll.LoadLibrary("libXss.so.1")
-class I(ctypes.Structure):
-    _fields_ = [("w", ctypes.c_ulong), ("s", ctypes.c_int), ("k", ctypes.c_int),
-                ("t", ctypes.c_ulong), ("idle", ctypes.c_ulong), ("m", ctypes.c_ulong)]
-x.XOpenDisplay.restype = ctypes.c_void_p
-x.XDefaultRootWindow.argtypes = [ctypes.c_void_p]; x.XDefaultRootWindow.restype = ctypes.c_ulong
-s.XScreenSaverAllocInfo.restype = ctypes.POINTER(I)
-s.XScreenSaverQueryInfo.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.POINTER(I)]
-d = x.XOpenDisplay(b":99"); i = s.XScreenSaverAllocInfo()
-if d and s.XScreenSaverQueryInfo(d, x.XDefaultRootWindow(d), i):
-    print(i.contents.idle // 1000)
-"""
-
-
-def liveview_idle():
-    """Seconds since the live view's screen last had a click or a key; None
-    if the container could not say."""
-    out = sh(KUBECTL + ["-n", "applypilot", "exec", "deploy/applypilot", "--", "python3", "-c", X_IDLE], 10).strip()
-    return int(out) if out.isdigit() else None
-
-
-def cmdlines(user):
-    """Every process of one user, as its command line."""
-    try:
-        uid = int(sh(["id", "-u", user], 5).strip())
-    except ValueError:
-        return []
-    out = []
-    for d in glob.glob("/proc/[0-9]*"):
-        try:
-            if os.stat(d).st_uid != uid:
-                continue
-            with open(d + "/cmdline", "rb") as f:
-                out.append(f.read().replace(b"\0", b" ").decode("utf-8", "replace"))
-        except OSError:
-            continue
-    return out
-
-
-def browser_uses():
-    """Who is on the live-view browser: the job bot, a Claude agent session,
-    and each device with the live view open, as {app: "Browser", ...}."""
-    users = [env_value("BROWSER_USER")] if env_value("BROWSER_USER") else BROWSER_USERS
-    procs = [c for user in users for c in cmdlines(user)]
-    out = []
-    # round.pid holds a pid of the container's own, which means nothing out
-    # here; the round's script is visible either way.
-    if any("scripts/round.sh" in c for c in procs):
-        applying = any("--remote-debugging-port" in c and "chrome-workers" in c for c in procs)
-        out.append({"app": "Browser", "who": "Apply bot",
-                    "what": "applying to jobs" if applying else "finding and writing, browser free",
-                    "device": "this PC"})
-    # A Claude session driving a browser of its own on the live screen: a remote-controlled
-    # Chrome that is neither the bot's (chrome-workers) nor the home window. An idle Claude
-    # session left open does not count.
-    if not out and any("chrom" in c and "--remote-debugging" in c and "chrome-workers" not in c
-                       and "liveview-browser" not in c and "--type=" not in c for c in procs):
-        out.append({"app": "Browser", "who": "Claude agent", "what": "using the browser", "device": "this PC"})
-    peers = {}
-    try:
-        st = json.loads(sh(["tailscale", "status", "--json"], 10) or "{}")
-        for peer in list((st.get("Peer") or {}).values()) + [st.get("Self") or {}]:
-            for ip in peer.get("TailscaleIPs") or []:
-                peers[ip] = peer.get("HostName") or "?"
-    except ValueError:
-        pass
-    seen = set()
-    idle = None
-    # Served on the host: the viewer's own connection. From the container: the
-    # PC's `tailscale serve` connecting to it, one per viewer, the viewer unknown.
-    flt = "( sport = :%d or dport = :%d )" % (LIVEVIEW_PORT, LIVEVIEW_PORT)
-    for line in sh(["ss", "-Htn", "state", "established", flt], 5).splitlines():
-        parts = line.split()
-        if len(parts) < 4:
-            continue
-        local, ip = parts[-2], parts[-1].rsplit(":", 1)[0].strip("[]")
-        if local.endswith(":%d" % LIVEVIEW_PORT):
-            device = peers.get(ip, ip)
-        else:
-            device = "a tailnet device"
-        if device in seen:
-            continue
-        seen.add(device)
-        if idle is None:
-            idle = liveview_idle()
-        # Unknown counts as watching, as before this check existed.
-        if idle is None or idle < LIVEVIEW_IDLE:
-            out.append({"app": "Browser", "who": "User", "what": "watching the live view", "device": device})
-    return out
-
-
 def active_list():
     """Who is using what, as {app, who, what, device}: Jellyfin's own
-    sessions, then pi-paths' last run (90 s) for everything else, then the
-    live-view browser."""
+    sessions, then pi-paths' last run (90 s) for everything else."""
     watching = jellyfin_sessions()
     out = list(watching or [])
-    out += browser_uses()
     now = time.time()
     seen = {}
     for _, msg in journal(["_SYSTEMD_UNIT=pi-paths.service"], now - 90, now):

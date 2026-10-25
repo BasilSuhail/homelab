@@ -54,12 +54,6 @@
     "icon": "/app-icons/archivebox.svg"
   },
   {
-    "name": "Browser",
-    "url": "https://homelab.<tailnet>.ts.net:8443/vnc.html?autoconnect=true&resize=scale&view_only=false",
-    "nodeId": "homelab",
-    "icon": "/app-icons/browser.svg"
-  },
-  {
     "name": "Gitea",
     "url": "https://git.<tailnet>.ts.net/",
     "nodeId": "homelab",

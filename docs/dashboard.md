@@ -47,7 +47,7 @@ card that matters, homelab; the retired Pis read offline.
 - **Files / Storage.** Columns, biggest first, read-only except in a few
   places. See [storage.md](storage.md).
 - **Status.** Who is using which app right now, Jellyfin and Kiwix totals, and
-  the job bot's Browser row. Under Watching over it, one line in two halves.
+  the torrent switch. Under Watching over it, one line in two halves.
   **User data**: how many people, and who has an account in which app
   (Jellyfin and Immich by API key, Nextcloud by occ, Vaultwarden and Gitea
   from their SQLite read-only, the tailnet's people), joined by name;
@@ -57,8 +57,7 @@ card that matters, homelab; the retired Pis read offline.
   (`pi-when content` keeps the log, `/var/lib/pi-when/activity.json`).
   Jellyfin's lines come from Jellyfin's own activity log (exact times, Funnel
   viewers included); the rest from pi-paths, filled from its journal the first
-  time. A live-view tab counts as watching only while its screen has had a
-  click or key in the last 10 minutes: an open tab streams forever.
+  time.
 
 ---
 

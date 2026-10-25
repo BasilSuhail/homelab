@@ -1568,60 +1568,6 @@ it gets everything: the repo with its issues, the working notes and chat
 history, and the PC's secrets and system configs.
 
 
-### Job-search bot and its live browser
-
-A personal job-search bot moved here from a laptop so it can run around the
-clock (issue #202). It runs as the login user, not in k3s: a real browser,
-a long-lived CLI login and a virtual screen are simpler on the host. Code and
-settings are on the SSD; its database, documents, logs and reports are on HDD2
-under `ApplyPilot/`, so the reports open over Samba from the Mac.
-
-The browser draws on a virtual screen (Xvfb `:99`, openbox), shared by x11vnc
-on localhost only and shown by noVNC on port 6080, bound to the tailnet
-address and nothing else. A home Chromium window keeps the view from ever
-being a black screen. A CAPTCHA the bot cannot solve becomes a Discord ping
-with the live-view link, and the user solves it from a phone.
-
-The Status tab's Browser row says who is on it. `pi-when content` adds Browser
-rows to the active list: the bot when its round is running, a Claude session,
-and each tailnet device with an established connection to port 6080, named
-from `tailscale status`. Checked live: the row read "Free", then named the
-laptop as soon as it opened the view.
-
-Kuma watches it with two monitors: a push from the bot when its browser and
-profiles are fine, and a check of the live-view page.
-
-### The job bot in its own container
-
-The bot reads untrusted job pages, and it ran as `homelab`, which has
-passwordless sudo and sees everything. Rather than give up passwordless sudo
-(the owner drives the PC from a phone), the bot moved out (issue #204):
-`applypilot/` is its image, `k8s/applypilot.yaml` the pod, and
-`deploy/install-applypilot.sh` builds it with buildkit like the console and
-switches over. The bot's code, data, Chrome profiles and Gmail login stay where
-they were and are mounted in at the same paths. Google sign-ins carried over:
-Chrome's cookies there use the basic store, not a keyring.
-
-What went wrong on the way:
-
-- **The agent's browser tool writes beside Playwright's browsers.** Mounted
-  read-only, every job failed as `browser_unavailable` with `EROFS` before a
-  page opened. The bot now has its own writable copy in its home.
-- **A round started from `kubectl exec` died with the terminal.** `nohup` was
-  not enough: when the exec session with a terminal closed, its background
-  round went too. `jobbot start` now uses `setsid -f` and waits for
-  `round.pid`.
-- **Kuma could not check `https://<homelab>:8443`.** `tailscale serve` answers
-  tailnet devices, and a pod is not one. Kuma checks the `liveview` Service
-  inside the cluster instead, and the network policy lets Kuma in on that port.
-- **Adding an ACL entry widens the mask**, which would have widened the
-  `www-data` entries on the HDD folders (rwx, held to r-x or less by the
-  mask). The ACL script pins every existing entry to what it granted first.
-- **The protocol hooks** reject private addresses and home paths in commits,
-  and the usual process manager's name trips the word screen. The manifest
-  gets its addresses and paths filled in at install, and runit keeps the
-  services up.
-
 ### Jellyfin's door to the internet
 
 Jellyfin is on Funnel for about ten people, because one user's
