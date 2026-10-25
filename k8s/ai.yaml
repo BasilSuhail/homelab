@@ -1,0 +1,123 @@
+# The local AI: llama.cpp's server with a small model on the PC's GPU.
+# Deployed by deploy/install-ai.sh. Plan and scope: issue #200.
+#
+#   the model   __APPS_DIR__/AI/models   one .gguf file, about 3GB
+#
+# Inside the cluster only (a ClusterIP Service, no tailnet name): the Discord
+# bot is what people talk to. It shares the card with Jellyfin, which needs
+# nothing extra: both get it through the nvidia runtime with
+# NVIDIA_VISIBLE_DEVICES=all and no device plugin, so neither holds it
+# exclusively. What they share is the 4GB of memory, so the model unloads after
+# ten idle minutes and Jellyfin has the whole card back.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai
+  namespace: pi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai
+  template:
+    metadata:
+      labels:
+        app: ai
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      runtimeClassName: nvidia
+      securityContext:
+        runAsUser: __UID__
+        runAsGroup: __GID__
+      containers:
+        - name: ai
+          image: docker.io/library/pi-ai:__TAG__
+          imagePullPolicy: IfNotPresent
+          args:
+            - --model
+            - /models/__MODEL__
+            - --alias
+            - local
+            # Every layer on the GPU; a model split with the CPU runs at a
+            # fraction of the speed.
+            - --gpu-layers
+            - all
+            # 8K tokens is a long chat plus a page of logs. The cache in 8-bit
+            # halves its memory, which is what lets this sit beside Jellyfin.
+            - --ctx-size
+            - "8192"
+            - --flash-attn
+            - "on"
+            - --cache-type-k
+            - q8_0
+            - --cache-type-v
+            - q8_0
+            # One conversation at a time: a second slot would need a second cache.
+            - --parallel
+            - "1"
+            - --sleep-idle-seconds
+            - "600"
+            - --no-webui
+            # llama-server listens on 127.0.0.1 unless told otherwise, which
+            # the probes and the Service cannot reach.
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+          env:
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 100m
+            # The weights live on the GPU; the model file is memory-mapped
+            # while it loads, which is page cache the kernel can take back.
+            limits:
+              memory: 4Gi
+              cpu: "2"
+          # /health does not wake a sleeping model, so probing it is free.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 6
+      volumes:
+        - name: models
+          hostPath:
+            path: __APPS_DIR__/AI/models
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai
+  namespace: pi
+spec:
+  selector:
+    app: ai
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

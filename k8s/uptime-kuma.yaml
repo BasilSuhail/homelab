@@ -1,0 +1,184 @@
+# Uptime Kuma: the thing that tells you a service died, instead of you finding
+# out by opening the console and looking.
+#
+# Deployed by deploy/install-uptime-kuma.sh. Lives in the `pi` namespace
+# alongside the dashboard, because a second namespace for one small workload
+# buys nothing on a single-node cluster.
+#
+# Reached on its own tailnet name rather than a path under the console's. Kuma
+# is a single-page app that assumes it owns the root path, and serving it from
+# a subdirectory breaks its websocket and its asset URLs. The Tailscale
+# operator gives it a name of its own, which is also the shape every service
+# added after this one will want.
+# Its heartbeat database used to be a local-path PersistentVolumeClaim, in a
+# directory named after a UUID inside k3s' internals. Named directories on
+# named drives now — see k8s/jellyfin.yaml for the reasoning.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-kuma
+  namespace: pi
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate: the volume is ReadWriteOnce and SQLite does
+  # not want two writers, so the old pod has to be gone before the new one
+  # starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: uptime-kuma
+  template:
+    metadata:
+      labels:
+        app: uptime-kuma
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      # Left running as it is. Its entrypoint hands off through setpriv and
+      # already needed three capabilities added back to survive that; forcing
+      # a uid on top of it is exactly the guess that caused the crash loop the
+      # capabilities note below describes. Only the volume changes here.
+      # MagicDNS names do not resolve inside a pod. DNS there goes to CoreDNS,
+      # which has never heard of the tailnet, so every monitor failed with
+      # "getaddrinfo ENOTFOUND pi.<tailnet>.ts.net" while the same URLs
+      # answered fine from a laptop.
+      #
+      # The addresses are given here rather than in the URLs so the names
+      # survive: the boards' certificates are issued to their tailnet names, and
+      # a monitor pointed at a bare address would fail TLS instead. Routing to
+      # the address already works, which is how the dashboard polls the agents.
+      #
+      # The operator's own DNSConfig does not help. Its nameserver only carries
+      # records for proxies the operator created, and the boards are ordinary
+      # tailnet machines. Proper name resolution for those would mean an egress
+      # proxy per board plus a CoreDNS stub, which is four moving parts and two
+      # extra pods.
+      #
+      # Filled in by the installer from `tailscale status`, one entry per
+      # tailnet machine, so no machine name or address is written into this
+      # repository — and a board added later is picked up on the next install.
+      hostAliases: __HOST_ALIASES__
+      containers:
+        - name: uptime-kuma
+          image: louislam/uptime-kuma:2.5.7@sha256:4b95dbe7ac5343b768f8e04e3035ccd59997872b1a35ab9b0f082d2cc279070e
+          ports:
+            - name: http
+              containerPort: 3001
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              memory: 96Mi
+              cpu: 20m
+            # Idles near 100 MB. The ceiling is for a runaway, not a target;
+            # 512Mi rather than 384Mi for 2.x's heartbeat aggregation.
+            limits:
+              memory: 512Mi
+          # Kuma serves its own dashboard, so a plain GET proves the process is
+          # answering. Slow start: it runs migrations on a cold database, and
+          # the 1.x to 2.x one rewrites every heartbeat. Up to ten minutes
+          # before liveness may restart it mid-migration.
+          startupProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              # Three, each for a reason.
+              #
+              # SETGID and SETUID: the image's entrypoint hands off to the app
+              # through `setpriv`, which calls setgroups(2), and that syscall
+              # needs CAP_SETGID whatever user it is switching to. Without them
+              # the container dies on its first line with
+              # "setpriv: setgroups failed: Operation not permitted",
+              # before any of Kuma's own code runs.
+              #
+              # NET_RAW: without it Kuma cannot send ICMP, so ping monitors
+              # fail while HTTP ones pass, which reads as a dead board rather
+              # than a missing capability.
+              #
+              # CHOWN: the entrypoint runs `chown -R node:node /app/data`
+              # before handing off. On the old local-path volume the directory
+              # was already owned correctly, and chown(1) skips the syscall
+              # when ownership already matches — so the missing capability was
+              # invisible for as long as the directory was never new. Pointed
+              # at a fresh directory it actually tries, and dies with
+              # "chown: changing ownership of '/app/data': Operation not
+              # permitted" before Kuma's own code runs. The same shape of
+              # failure as the setpriv one above, and found the same way:
+              # by reading what the container said, not by guessing.
+              add: ["SETGID", "SETUID", "NET_RAW", "CHOWN"]
+      volumes:
+  # A note on `type: Directory` below, which is doing real work.
+  #
+  # The alternative, DirectoryOrCreate, is the default reflex and it is wrong for
+  # a disk that can go away. With the 6TB unmounted, /srv/storage still exists —
+  # it is the mount point, an empty directory on the boot disk. DirectoryOrCreate
+  # would create the app's folders inside it, the app would start, find no
+  # database, and cheerfully build a new one on the boot SSD. Mount the 6TB again
+  # and the real data reappears underneath, with the app now pointed at a second
+  # copy it made while the disk was missing.
+  #
+  # Directory refuses. The app's subdirectory only exists when the disk is
+  # mounted, so an unmounted disk means the pod stops at ContainerCreating with
+  # the missing path named in its events. Loud and harmless, instead of quiet and
+  # not.
+        # All of it on the SSD, and it is the size of a photograph.
+        #
+        # Kuma writes a heartbeat row per monitor every sixty seconds, forever.
+        # Tiny, constant, and enough on its own to keep a 6TB disk awake day and
+        # night — audible, warm, and wearing out for a database that would fit
+        # on a floppy. It has no business on the big disk: it is not big, and
+        # what it does is exactly what the big disk is worst at.
+        # One level down, not the app folder itself. Kuma chowns everything
+        # inside this mount to its own user, so anything else kept beside it —
+        # the note naming where the data went, for one — becomes a file the
+        # entrypoint tries to take ownership of and fails on.
+        - name: data
+          hostPath:
+            path: __APPS_DIR__/Uptime/data
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: uptime-kuma
+  namespace: pi
+spec:
+  selector:
+    app: uptime-kuma
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# The Tailscale operator watches for this class and puts the Service on the
+# tailnet under metadata.name, so this becomes https://uptime.<tailnet>.ts.net
+# with a real certificate and no open ports. Requires the operator: see
+# k8s/tailscale-operator.yaml.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: uptime
+  namespace: pi
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: uptime-kuma
+      port:
+        name: http
+  tls:
+    - hosts: ["uptime"]

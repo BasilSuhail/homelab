@@ -1,0 +1,218 @@
+# Jellyfin: the media server. Deployed by deploy/install-media.sh.
+#
+# The point of this file is where the bytes go, and that is deliberately not
+# one place. An app has two halves with completely different sizes and
+# completely different reasons to be looked at:
+#
+#   the SSD     settings, the library database, artwork and the cache. Around
+#               a gigabyte. Small, and read at random — which is the part that
+#               matters. Every library browse and every scan is thousands of
+#               tiny reads scattered across the file, and a seek costs a
+#               spinning disk about 5ms against an SSD's 0.1. Putting a
+#               database on the big disk buys nothing and makes the whole UI
+#               feel slow.
+#   the 6TB     the films. Hundreds of gigabytes, read start to finish, which
+#               is the one thing a spinning disk is genuinely good at.
+#
+# The split is by how a file is read, not by whether it is called data. Jellyfin
+# has to be told, because left to itself it puts the database inside the config
+# directory — the JELLYFIN_*_DIR variables below are what make the split real
+# rather than a name.
+#
+# hostPath rather than a PersistentVolumeClaim on purpose. local-path volumes
+# land in /var/lib/rancher/k3s/storage/pvc-<uuid>_<ns>_<name>, which is
+# invisible: you cannot find it in Finder, you cannot back it up without
+# knowing k3s' internals, and you certainly cannot tell at a glance what is
+# eating the disk. A named directory on a named drive can do all three.
+#
+# __APPS_DIR__ and __DATA_DIR__ are substituted by the installer, which is also
+# what makes them configurable per board.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+  namespace: pi
+spec:
+  replicas: 1
+  # SQLite on a ReadWriteOnce path: the old pod must be gone before the new
+  # one starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      # As the login user, not as root. Everything written lands owned by the
+      # account that owns the archive, so the same files are manageable from
+      # Finder over Samba and from a shell. A media server that leaves
+      # root-owned directories in your own folders is one you have to sudo to
+      # tidy up after.
+      securityContext:
+        runAsUser: __UID__
+        runAsGroup: __GID__
+        fsGroup: __GID__
+      containers:
+        - name: jellyfin
+          image: jellyfin/jellyfin:12.3.20261023-013714@sha256:2038fe038ab3876a80f6e7b7e0aef6607b032c7dc0c9b3ad3296d0b2eba3bbb5
+          ports:
+            - name: http
+              containerPort: 8096
+          env:
+            # Without this, Jellyfin advertises its internal cluster IP
+            # (10.42.x.x:8096) to Chromecast, which can't reach it.
+            - name: JELLYFIN_PublishedServerUrl
+              value: https://jellyfin.<tailnet>.ts.net
+            # The split described at the top. Without these three, "config"
+            # holds the database and the artwork too.
+            - name: JELLYFIN_CONFIG_DIR
+              value: /config
+            - name: JELLYFIN_DATA_DIR
+              value: /data
+            - name: JELLYFIN_CACHE_DIR
+              value: /cache
+            - name: JELLYFIN_LOG_DIR
+              value: /data/log
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+            - name: cache
+              mountPath: /cache
+            - name: media
+              mountPath: /media
+          resources:
+            # Jellyfin comes first on this board. A CPU request is the share a
+            # container is guaranteed when the CPU is contended, so two cores
+            # here means Immich's processing, torrents and the rest are what
+            # slow down, not playback. No CPU limit: with the board idle it can
+            # still use all four.
+            requests:
+              memory: 1Gi
+              cpu: "2"
+            # Idles near 300MB with a small library. The ceiling is for a
+            # runaway scan, not a target.
+            limits:
+              memory: 4Gi
+          # Jellyfin runs migrations and a library scan on a cold start, so the
+          # first readiness check has to be patient.
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+      volumes:
+  # A note on `type: Directory` below, which is doing real work.
+  #
+  # The alternative, DirectoryOrCreate, is the default reflex and it is wrong for
+  # a disk that can go away. With the 6TB unmounted, /srv/storage still exists —
+  # it is the mount point, an empty directory on the boot disk. DirectoryOrCreate
+  # would create the app's folders inside it, the app would start, find no
+  # database, and cheerfully build a new one on the boot SSD. Mount the 6TB again
+  # and the real data reappears underneath, with the app now pointed at a second
+  # copy it made while the disk was missing.
+  #
+  # Directory refuses. The app's subdirectory only exists when the disk is
+  # mounted, so an unmounted disk means the pod stops at ContainerCreating with
+  # the missing path named in its events. Loud and harmless, instead of quiet and
+  # not.
+        # SSD, under the archive: settings.
+        - name: config
+          hostPath:
+            path: __APPS_DIR__/Jellyfin
+            type: Directory
+        # SSD: the library database and artwork. Read at random, so it lives
+        # with the app rather than with the films.
+        - name: data
+          hostPath:
+            path: __APPS_DIR__/Jellyfin/data
+            type: Directory
+        # SSD: transcode scratch and the image cache. Rewritten constantly and
+        # thrown away without consequence, which is the worst possible thing to
+        # ask of a spinning disk and the least useful place for its capacity.
+        - name: cache
+          hostPath:
+            path: __APPS_DIR__/Jellyfin/cache
+            type: Directory
+        # 6TB: the films. The only part of Jellyfin that is actually big.
+        - name: media
+          hostPath:
+            path: __DATA_DIR__/Jellyfin/Media
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin
+  namespace: pi
+spec:
+  selector:
+    app: jellyfin
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# The home network, for a TV that has no Tailscale client. k3s's built-in load
+# balancer publishes this on port 8096 of the machine's own LAN address, so a
+# TV in the house opens http://<the machine's LAN address>:8096 — Jellyfin's
+# usual port, which its TV apps try first. Nothing outside the house can
+# reach it: the router forwards no port to it. This is separate from Funnel
+# (below), the internet route for those outside. It is also the fastest
+# route for anyone at home, with nothing between the TV and the server.
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin-lan
+  namespace: pi
+spec:
+  type: LoadBalancer
+  selector:
+    app: jellyfin
+  ports:
+    - name: http
+      port: 8096
+      targetPort: http
+---
+# Its own tailnet machine, the same shape as Uptime and Vault: a root path and
+# a real certificate, because Jellyfin's clients assume they own the root.
+#
+# Funnel is on: the login page is on the open internet at the same name.
+# One remote user's provider slows Tailscale to about 0.5 Mbit/s, and through
+# Funnel the same films play smoothly (#198). It is guarded: jellyfin-guard
+# switches it off and posts to Discord when strangers try to log in (#179).
+# Kept here because a reinstall would otherwise switch it off silently. To
+# drop it, delete the annotation and run:
+#   sudo k3s kubectl -n pi annotate ingress jellyfin tailscale.com/funnel-
+#
+# It goes to the bouncer, k8s/jellyfin-edge.yaml, not to Jellyfin directly:
+# admin changes refused from the internet, sign-ins limited per address.
+# Installed by deploy/install-jellyfin-edge.sh, which must have run once.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jellyfin
+  namespace: pi
+  annotations:
+    tailscale.com/funnel: "true"
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: jellyfin-edge
+      port:
+        name: http
+  tls:
+    - hosts: ["jellyfin"]

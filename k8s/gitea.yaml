@@ -1,0 +1,172 @@
+# Gitea: self-hosted Git, on its own tailnet name. Issue #201.
+#
+# Deployed by deploy/install-gitea.sh, which fills in the __PLACEHOLDERS__.
+#
+#   /var/lib/gitea       __APPS_DIR__/Gitea          SSD mirror. The SQLite
+#                                                    database under data/,
+#                                                    backups-in-progress under
+#                                                    dumps/
+#   /etc/gitea           __APPS_DIR__/Gitea/config   SSD mirror. app.ini
+#   /var/lib/gitea/git   __DATA_DIR__/Gitea          HDD2. The repos, LFS and
+#                                                    attachments: the part that
+#                                                    grows
+#
+# The same split as the other apps: what the app is on the SSD, what it holds
+# on the data drive.
+# Runs as the login user, so every file is the login user's and can be copied
+# over the Samba share like the other apps' folders. Backups are made by hand
+# with `sudo gitea-backup` (deploy/gitea-backup.sh); nothing here makes one on
+# its own.
+#
+# Clone and push over HTTPS. No SSH: the tailnet proxy carries HTTP only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: pi
+spec:
+  replicas: 1
+  # SQLite: the old pod has to be gone before the new one opens the database.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      securityContext:
+        runAsUser: __UID__
+        runAsGroup: __GID__
+      containers:
+        - name: gitea
+          # The rootless image: one process, no s6 and no root entrypoint, so
+          # running it as the login user needs nothing extra.
+          image: docker.io/gitea/gitea:28.2.0-rootless
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            # The image turns GITEA__section__KEY into app.ini on every start,
+            # so these win over anything edited in the file.
+            - name: GITEA__server__DOMAIN
+              value: git.__TAILNET__
+            - name: GITEA__server__ROOT_URL
+              value: https://git.__TAILNET__/
+            - name: GITEA__server__HTTP_PORT
+              value: "3000"
+            - name: GITEA__server__DISABLE_SSH
+              value: "true"
+            - name: GITEA__server__START_SSH_SERVER
+              value: "false"
+            # No avatars or fonts fetched from the internet.
+            - name: GITEA__server__OFFLINE_MODE
+              value: "true"
+            # The image's default is the whole of /var/lib/gitea, which would
+            # put dumps/ inside what `gitea dump` copies: each backup would
+            # contain the one before it.
+            - name: GITEA__server__APP_DATA_PATH
+              value: /var/lib/gitea/data
+            - name: GITEA__database__DB_TYPE
+              value: sqlite3
+            - name: GITEA__database__PATH
+              value: /var/lib/gitea/data/gitea.db
+            - name: GITEA__repository__ROOT
+              value: /var/lib/gitea/git/repositories
+            - name: GITEA__lfs__PATH
+              value: /var/lib/gitea/git/lfs
+            - name: GITEA__attachment__PATH
+              value: /var/lib/gitea/git/attachments
+            - name: GITEA__repository__DEFAULT_PRIVATE
+              value: private
+            # Settings come from here, so the web installer never shows.
+            - name: GITEA__security__INSTALL_LOCK
+              value: "true"
+            # Without one Gitea falls back to a key that is the same on every
+            # install. Made once by the installer and kept in a Secret.
+            - name: GITEA__security__SECRET_KEY
+              valueFrom:
+                secretKeyRef: { name: gitea-secret, key: SECRET_KEY }
+            # The installer makes the admin; further accounts come from
+            # Site Administration. Nothing is visible without signing in.
+            - name: GITEA__service__DISABLE_REGISTRATION
+              value: "true"
+            - name: GITEA__service__REQUIRE_SIGNIN_VIEW
+              value: "true"
+            # No runner here, so Actions would only add an empty tab.
+            - name: GITEA__actions__ENABLED
+              value: "false"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/gitea
+            - name: config
+              mountPath: /etc/gitea
+            - name: repos
+              mountPath: /var/lib/gitea/git
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            # Go, and it idles near 150 MB. The ceiling is for a runaway.
+            limits:
+              memory: 1Gi
+          # Gitea's own health check: answers without a login and includes the
+          # database.
+          readinessProbe:
+            httpGet: { path: /api/healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /api/healthz, port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+      volumes:
+        # Directory, not DirectoryOrCreate: see k8s/vaultwarden.yaml. The
+        # installer makes both.
+        - name: data
+          hostPath:
+            path: __APPS_DIR__/Gitea
+            type: Directory
+        - name: config
+          hostPath:
+            path: __APPS_DIR__/Gitea/config
+            type: Directory
+        - name: repos
+          hostPath:
+            path: __DATA_DIR__/Gitea
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea
+  namespace: pi
+spec:
+  selector:
+    app: gitea
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: git
+  namespace: pi
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: gitea
+      port:
+        name: http
+  tls:
+    - hosts: ["git"]

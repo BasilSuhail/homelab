@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- qBittorrent behind a VPN: a download arrow inside a shield, drawn to
+       match vault.svg and jellyfin.svg. Same chassis grey, same slate outline.
+       The shield is the point — this client has no route that is not the
+       tunnel. Green, distinct from the vault's amber and Jellyfin's violet. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- Shield -->
+  <path d="M128 24 L222 58 L222 132 C222 182 180 216 128 234
+           C76 216 34 182 34 132 L34 58 Z"
+        fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+  <!-- Inner face, darker so the arrow has a ground to sit on. -->
+  <path d="M128 46 L202 72 L202 131 C202 170 169 197 128 212
+           C87 197 54 170 54 131 L54 72 Z" fill="#3b4248"/>
+
+  <!-- Download arrow -->
+  <g stroke="#54c04a" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M128 88 L128 148"/>
+    <path d="M98 122 L128 152 L158 122"/>
+    <path d="M92 176 L164 176"/>
+  </g>
+</svg>

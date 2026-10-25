@@ -1,0 +1,174 @@
+# Kiwix: offline Wikipedia, and anything else published as a .zim file.
+# Deployed by deploy/install-media.sh.
+#
+# Same split as Jellyfin, for the same reason — see the top of k8s/jellyfin.yaml
+# for why these are hostPath directories and not PersistentVolumeClaims.
+#
+#   the app     __APPS_DIR__/Kiwix   the library index. Tiny.
+#   the data    __WIKI_DIR__/Kiwix   the .zim files. Wikipedia with images is
+#                                    about 100GB, which is the whole reason
+#                                    this lives on the 6TB.
+#
+# kiwix-serve is handed a library file rather than a glob of .zim paths,
+# because a glob that matches nothing expands to a literal "*.zim", and
+# kiwix-serve exits on a file it cannot open. An empty library starts cleanly
+# and serves an empty catalogue, so the tailnet name and the certificate exist
+# from the first deploy — before any content has been downloaded.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kiwix
+  namespace: pi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: kiwix
+  template:
+    metadata:
+      labels:
+        app: kiwix
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      securityContext:
+        runAsUser: __UID__
+        runAsGroup: __GID__
+        fsGroup: __GID__
+      containers:
+        - name: kiwix
+          image: ghcr.io/kiwix/kiwix-serve:3.8.2@sha256:e478554a9920412eeb5ce1d73f24e4b28445ebed233187cdd03c623c32be46a5
+          ports:
+            - name: http
+              containerPort: 8080
+          # The library is rebuilt from whatever .zim files are in the folder:
+          # once at start, then again whenever the folder changes. Drop a .zim
+          # into the Kiwix folder on HDD2 and it appears within a couple of
+          # minutes, with no restart.
+          #
+          # A file still being copied or downloaded changes size from one look
+          # to the next, so nothing is rebuilt until the folder has held still
+          # for a full minute; a file kiwix-manage still cannot open is skipped
+          # and tried again on the next change. kiwix-serve reloads the library
+          # when it changes (--monitorLibrary). On a build without that flag
+          # the watcher restarts the container instead, which rebuilds the
+          # same way.
+          #
+          # A rebuild rather than a persisted index, because the folder is the
+          # truth: a library file that disagrees with what is on the disk is a
+          # second source of truth nobody asked for.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -u
+              lib=/config/library.xml
+              build() {
+                printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<library version="20110515"/>' > "$1"
+                for zim in /data/*.zim; do
+                  [ -e "$zim" ] || continue
+                  kiwix-manage "$1" add "$zim" >/dev/null 2>&1 || echo "skipped $zim (incomplete or unreadable)"
+                done
+              }
+              sizes() {
+                for zim in /data/*.zim; do
+                  [ -e "$zim" ] && echo "$zim $(stat -c %s "$zim")"
+                done
+                true
+              }
+              build "$lib"
+              watch=--monitorLibrary
+              kiwix-serve --help 2>&1 | grep -q -- --monitorLibrary || watch=
+              loaded=$(sizes)
+              (
+                last=$loaded
+                while sleep 60; do
+                  now=$(sizes)
+                  if [ "$now" = "$last" ] && [ "$now" != "$loaded" ]; then
+                    build "$lib.new" && mv "$lib.new" "$lib"
+                    loaded=$now
+                    echo "library rebuilt"
+                    [ -n "$watch" ] || kill 1
+                  fi
+                  last=$now
+                done
+              ) &
+              exec kiwix-serve --port 8080 $watch --library "$lib"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 20m
+            # Serving a .zim is mostly mmap and page cache, which is not
+            # charged to the container. The ceiling is for a runaway.
+            limits:
+              memory: 512Mi
+          # Indexing a large .zim at startup can take a while, so readiness is
+          # patient. "/" is the catalogue, which answers even when empty.
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+      volumes:
+  # A note on `type: Directory` below, which is doing real work.
+  #
+  # The alternative, DirectoryOrCreate, is the default reflex and it is wrong for
+  # a disk that can go away. With the 6TB unmounted, /srv/storage still exists —
+  # it is the mount point, an empty directory on the boot disk. DirectoryOrCreate
+  # would create the app's folders inside it, the app would start, find no
+  # database, and cheerfully build a new one on the boot SSD. Mount the 6TB again
+  # and the real data reappears underneath, with the app now pointed at a second
+  # copy it made while the disk was missing.
+  #
+  # Directory refuses. The app's subdirectory only exists when the disk is
+  # mounted, so an unmounted disk means the pod stops at ContainerCreating with
+  # the missing path named in its events. Loud and harmless, instead of quiet and
+  # not.
+        - name: config
+          hostPath:
+            path: __APPS_DIR__/Kiwix
+            type: Directory
+        - name: data
+          hostPath:
+            path: __WIKI_DIR__/Kiwix
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kiwix
+  namespace: pi
+spec:
+  selector:
+    app: kiwix
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kiwix
+  namespace: pi
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: kiwix
+      port:
+        name: http
+  tls:
+    - hosts: ["kiwix"]

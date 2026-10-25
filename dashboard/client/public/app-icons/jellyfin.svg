@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Jellyfin: a play triangle in a screen, drawn to match vault.svg and
+       files.png. Same chassis grey, same slate outline, same foot detail.
+       Violet, so it reads as media rather than storage or security in a row
+       of tiles. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- Stand, behind the screen. -->
+  <rect x="112" y="196" width="32" height="26" fill="#4a5359"/>
+  <rect x="76" y="216" width="104" height="18" rx="9" fill="#4a5359"/>
+
+  <!-- Screen body -->
+  <rect x="20" y="30" width="216" height="168" rx="16" fill="#c9ced2"
+        stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+  <!-- Inner panel, darker so the play mark has something to sit on. -->
+  <rect x="40" y="50" width="176" height="128" rx="8" fill="#3b4248"/>
+
+  <!-- Play mark -->
+  <path d="M108 86 L108 142 L154 114 Z" fill="#a077e8"
+        stroke="#c9a6ff" stroke-width="7" stroke-linejoin="round"/>
+</svg>

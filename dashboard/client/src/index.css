@@ -1,0 +1,1092 @@
+/* ── Tokens: Aqua is the complete palette; Graphite redefines only these ── */
+:root{
+  --desktop:#e8e5df; --content:#eeebe6; --shell:#e4e1db;
+  --bar-1:#f7f5f1; --bar-2:#ddd9d2; --bar-edge:#b0a99e;
+  --btn-1:#faf8f5; --btn-2:#dbd7d0; --btn-edge:#a5a099;
+  --gel-1:#66c2e2; --gel-2:#2085ac; --gel-edge:#147da1; --gel-ink:#fff;
+  --panel:rgba(252,250,246,.80); --panel-edge:#b8b2a8; --panel-line:#d6d1c9;
+  --card-1:rgba(253,251,247,.95); --card-2:rgba(237,233,225,.94); --card-edge:#b5aea4;
+  --ink:#2b2418; --ink-2:#3d3528; --muted:#7a7265; --faint:#9e968a;
+  --link:#2384a0; --rule:#cdc8be; --shadow:rgba(20,16,8,.35);
+  --meter-bg-a:#d8d3ca; --meter-bg-b:#ccc7be; --meter-edge:#b5b0a6;
+  --ok:#40ac63; --ok-1:#a5e29d; --warn:#ee8d28; --warn-1:#ffce76;
+  --crit:#dc4f4a; --crit-1:#ff9890; --aqua-1:#81ddf1; --aqua-2:#1f9bc0;
+  --gpu-1:#c3b4f0; --gpu-2:#7a5fc8;
+  --row-hover:rgba(120,180,205,.13);
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  /* Aqua's lit edge and pinstripe. Both are white-on-white in Blue; on
+     Graphite the same values read as glare, so they drop right down. */
+  --gloss:rgba(255,255,255,.5); --gloss-soft:rgba(255,255,255,.35);
+  --gloss-edge:rgba(255,255,255,.7); --stripe:rgba(255,255,255,.20);
+  --groove:repeating-linear-gradient(90deg,var(--meter-bg-a) 0,var(--meter-bg-a) 4px,
+    var(--meter-bg-b) 4px,var(--meter-bg-b) 5px);
+  --groove-v:repeating-linear-gradient(0deg,var(--meter-bg-a) 0,var(--meter-bg-a) 4px,
+    var(--meter-bg-b) 4px,var(--meter-bg-b) 5px);
+  --sheen:repeating-linear-gradient(90deg,var(--gloss-soft) 0,var(--gloss-soft) 3px,
+    transparent 3px,transparent 5px);
+}
+:root:not([data-theme="light"]) { }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --desktop:#1c2226; --content:#2b3238; --shell:#343c43;
+    --bar-1:#454d55; --bar-2:#373e45; --bar-edge:#22282d;
+    --btn-1:#4e565e; --btn-2:#3a4148; --btn-edge:#23292e;
+    --gel-1:#4e93b0; --gel-2:#2f6d88; --gel-edge:#1d4f65; --gel-ink:#f2f8fb;
+    --panel:rgba(58,66,73,.72); --panel-edge:#4a535b; --panel-line:#434b53;
+    --card-1:rgba(62,70,78,.95); --card-2:rgba(50,57,64,.94); --card-edge:#4c565e;
+    --ink:#e6edf1; --ink-2:#cdd7dd; --muted:#93a0a8; --faint:#79868e;
+    --link:#6ab6d2; --rule:#414a51; --shadow:rgba(0,0,0,.55);
+    --meter-bg-a:#3c444b; --meter-bg-b:#333a41; --meter-edge:#4a535a;
+    --ok:#5cc17e; --ok-1:#8fd79a; --warn:#f0a04b; --warn-1:#ffca85;
+    --crit:#e8706b; --crit-1:#ffa39c; --aqua-1:#7cc9e0; --aqua-2:#3d9dbe;
+    --gpu-1:#b7a6ee; --gpu-2:#8f77dc;
+    --row-hover:rgba(120,180,205,.10);
+    --gloss:rgba(255,255,255,.075); --gloss-soft:rgba(255,255,255,.05);
+  --gloss-edge:rgba(255,255,255,.10); --stripe:transparent;
+  --groove:linear-gradient(var(--meter-bg-a),var(--meter-bg-b));
+  --groove-v:linear-gradient(90deg,var(--meter-bg-a),var(--meter-bg-b));
+  --sheen:linear-gradient(rgba(255,255,255,.06),rgba(255,255,255,0));
+  }
+}
+:root[data-theme="dark"]{
+  --desktop:#1c2226; --content:#2b3238; --shell:#343c43;
+  --bar-1:#454d55; --bar-2:#373e45; --bar-edge:#22282d;
+  --btn-1:#4e565e; --btn-2:#3a4148; --btn-edge:#23292e;
+  --gel-1:#4e93b0; --gel-2:#2f6d88; --gel-edge:#1d4f65; --gel-ink:#f2f8fb;
+  --panel:rgba(58,66,73,.72); --panel-edge:#4a535b; --panel-line:#434b53;
+  --card-1:rgba(62,70,78,.95); --card-2:rgba(50,57,64,.94); --card-edge:#4c565e;
+  --ink:#e6edf1; --ink-2:#cdd7dd; --muted:#93a0a8; --faint:#79868e;
+  --link:#6ab6d2; --rule:#414a51; --shadow:rgba(0,0,0,.55);
+  --meter-bg-a:#3c444b; --meter-bg-b:#333a41; --meter-edge:#4a535a;
+  --ok:#5cc17e; --ok-1:#8fd79a; --warn:#f0a04b; --warn-1:#ffca85;
+  --crit:#e8706b; --crit-1:#ffa39c; --aqua-1:#7cc9e0; --aqua-2:#3d9dbe;
+  --gpu-1:#b7a6ee; --gpu-2:#8f77dc;
+  --row-hover:rgba(120,180,205,.10);
+  --gloss:rgba(255,255,255,.075); --gloss-soft:rgba(255,255,255,.05);
+  --gloss-edge:rgba(255,255,255,.10); --stripe:transparent;
+  --groove:linear-gradient(var(--meter-bg-a),var(--meter-bg-b));
+  --groove-v:linear-gradient(90deg,var(--meter-bg-a),var(--meter-bg-b));
+  --sheen:linear-gradient(rgba(255,255,255,.06),rgba(255,255,255,0));
+}
+
+*{box-sizing:border-box}
+h1,h2,p{margin:0}
+svg{display:block}
+body{
+  margin:0; min-width:320px; background:var(--desktop); color:var(--ink-2);
+  padding:18px;
+  padding-top:max(18px,env(safe-area-inset-top));
+  padding-bottom:max(18px,env(safe-area-inset-bottom));
+  font-family:"Lucida Grande",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  font-synthesis:none; text-rendering:optimizeLegibility;
+}
+button{font:inherit; cursor:pointer}
+:focus-visible{outline:2px solid var(--link); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ── Window chrome ── */
+.shell{
+  width:min(1330px,100%); margin:0 auto; overflow:hidden; border-radius:9px;
+  background:var(--shell); border:1px solid var(--bar-edge);
+  box-shadow:0 22px 46px var(--shadow);
+}
+
+/* ── Toolbar ── */
+.toolbar{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:6px 13px;position:relative;
+  background:linear-gradient(var(--bar-1),var(--bar-2));border-bottom:1px solid var(--bar-edge);
+  box-shadow:inset 0 1px var(--gloss-edge)}
+.tbtn{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--btn-edge);
+  border-radius:5px;color:var(--ink-2);background:linear-gradient(var(--btn-1),var(--btn-2));
+  box-shadow:0 1px 2px rgba(24,56,69,.15),inset 0 1px var(--gloss);
+  font-size:12px;font-weight:700;transition:transform .12s}
+.tbtn.on{color:var(--gel-ink);border-color:var(--gel-edge);
+  background:linear-gradient(var(--gel-1),var(--gel-2));text-shadow:0 1px rgba(20,70,90,.55)}
+.tbtn:active{transform:scale(.985)}
+.ibtn{display:grid;place-items:center;width:32px;height:30px;padding:0;
+  border:1px solid var(--btn-edge);border-radius:5px;color:var(--ink-2);
+  background:linear-gradient(var(--btn-1),var(--btn-2));
+  box-shadow:0 1px 2px rgba(24,56,69,.15),inset 0 1px var(--gloss);
+  transition:transform .12s,border-color .12s,color .12s}
+.ibtn:hover{border-color:var(--gel-edge);color:var(--link)}
+.ibtn:active{transform:scale(.95);box-shadow:inset 0 1px 3px rgba(24,56,69,.25)}
+.ibtn .i-sun{display:none}
+:root[data-theme="dark"] .ibtn .i-sun{display:block}
+:root[data-theme="dark"] .ibtn .i-moon{display:none}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .ibtn .i-sun{display:block}
+  :root:not([data-theme="light"]) .ibtn .i-moon{display:none}
+}
+/* Turns for as long as the scan takes, a couple of seconds. */
+#refresh.spin svg{animation:fx-spin .8s linear infinite}
+.tdiv{width:1px;height:23px;margin:0 8px;background:var(--bar-edge);box-shadow:1px 0 var(--gloss-soft)}
+.spacer{flex:1}
+
+/* segmented sort control — the Activity Monitor tab row */
+.seg{display:inline-flex;border:1px solid var(--btn-edge);border-radius:5px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(24,56,69,.14),inset 0 1px var(--gloss)}
+.seg button{border:0;border-right:1px solid var(--btn-edge);padding:6px 13px;font-size:11px;
+  font-weight:700;color:var(--muted);background:linear-gradient(var(--btn-1),var(--btn-2));
+  transition:color .12s}
+.seg button:last-child{border-right:0}
+.seg button.on{color:var(--gel-ink);background:linear-gradient(var(--gel-1),var(--gel-2));
+  text-shadow:0 1px rgba(20,70,90,.5)}
+.seg-label{font-family:var(--mono);font-size:9px;letter-spacing:.13em;color:var(--faint)}
+.live{display:flex;align-items:center;gap:6px;color:var(--muted);font-family:var(--mono);
+  font-size:10px;font-weight:500;letter-spacing:.04em}
+.dot-live{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok-1)}
+.dot-live.off{background:var(--crit);box-shadow:0 0 6px var(--crit-1)}
+.dot-live.warn{background:var(--warn);box-shadow:0 0 6px var(--warn-1)}
+.dot-live.idle{background:var(--faint);box-shadow:none}
+
+/* ── Content ── */
+.content{padding:20px 22px 22px;background-color:var(--content);
+  background-image:linear-gradient(var(--stripe) 1px,transparent 1px);
+  background-size:4px 4px}
+.head{display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin-bottom:16px;
+  flex-wrap:wrap}
+.head-l{display:flex;align-items:baseline;gap:14px}
+h1{font-size:23px;letter-spacing:-.035em;color:var(--ink);text-wrap:balance}
+.head-sub{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted);
+  display:flex;align-items:center;gap:6px}
+.mini-led{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 5px var(--ok-1)}
+.head-r{display:flex;align-items:center;gap:9px}
+
+/* ── Node cards ── */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid.single{grid-template-columns:minmax(0,1fr)}
+.shell.wide{width:min(1760px,100%)}
+/* Both cards the same height, the narrow card's rows taking the slack, so the
+   two process tables and footers sit level. */
+.grid.with-side{grid-template-columns:minmax(0,1fr) 400px;align-items:stretch}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.side>.card{flex:1}
+.card.compact .c-body{flex:1}
+.card.compact .c-line p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:1500px){
+  .grid.with-side{grid-template-columns:minmax(0,1fr)}
+  .shell.wide{width:min(1330px,100%)}
+}
+/* The narrow card: one graph for temperature and power, a two-column table,
+   and its one fan in a box. */
+.sense.one{grid-template-columns:minmax(0,1fr)}
+.card.compact .mgraph.dual{height:56px}
+.card.compact .s-head{flex-wrap:nowrap;gap:6px}
+.card.compact .s-head b{white-space:nowrap}
+.card.compact .s-head .chip{margin-left:6px}
+.s-gap{margin-left:10px}
+.mg-lab.mg-left{right:auto;left:3px}
+.card.compact .prow{grid-template-columns:minmax(80px,1fr) 52px 76px}
+.fan-row{margin:6px 0}
+.fan-box{flex:1;min-width:0;padding:4px 10px;border:1px solid var(--panel-line);border-radius:5px;background:var(--panel)}
+.fan-val{font-family:var(--mono);font-size:12px;color:var(--ink);white-space:nowrap}
+.fan-val small{font-size:9px;color:var(--muted)}
+.card{min-width:0;padding:15px 16px 12px;border:1px solid var(--card-edge);border-radius:6px;
+  background:linear-gradient(135deg,var(--card-1),var(--card-2));
+  box-shadow:0 2px 4px rgba(36,73,84,.13),inset 0 1px var(--gloss-soft);
+  display:flex;flex-direction:column;container-type:inline-size}
+/* Name, address and specs on one line in the spec size, so the card starts at
+   once and the rows below get the room. */
+.c-line{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:10px;color:var(--muted)}
+.c-line p{min-width:0}
+.c-line b{font-weight:400;color:var(--ink)}
+.sdot{flex:none;width:10px;height:10px;border-radius:50%;border:1px solid #237b63;
+  background:radial-gradient(circle at 35% 30%,#fff 0 13%,#5ae29a 24%,#16a767 80%);
+  box-shadow:0 0 5px rgba(38,191,118,.75)}
+/* StatusDot has passed `offline`, and a size, since it was written. Neither was
+   ever styled, so every light on the console rendered as the green above — an
+   unreachable app, and a node the fleet view marks `online={false}` outright,
+   both showed the same lit green as a healthy one. A status light that cannot
+   show a status is worse than no light, because it is believed.
+   --crit rather than a literal, so it follows the theme like everything else. */
+.sdot.offline{border-color:color-mix(in srgb,var(--crit) 62%,black);
+  background:radial-gradient(circle at 35% 30%,#fff 0 13%,var(--crit-1) 24%,var(--crit) 80%);
+  box-shadow:0 0 5px color-mix(in srgb,var(--crit) 70%,transparent)}
+.sdot.sm{width:8px;height:8px}
+/* Compute on the left, storage and system on the right, once the card is wide
+   enough to hold two columns of meters; one column below that. */
+.c-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 26px}
+.col{min-width:0;display:flex;flex-direction:column}
+@container (max-width:760px){.c-body{grid-template-columns:minmax(0,1fr)}}
+.sec{display:flex;align-items:center;gap:10px;margin:12px 0 4px;color:var(--faint);
+  font-family:var(--mono);font-size:9px;letter-spacing:.13em}
+.sec::after{content:"";height:1px;flex:1;background:var(--rule)}
+.col>.sec:first-child{margin-top:0}
+.sec small{letter-spacing:.04em;color:var(--muted);font-size:10px}
+
+/* Every row shares a left edge and a right edge; the meter takes whatever is
+   left between them. So a row reading "29.34 GB / 984.37 GB" gets a shorter
+   bar than one reading "5%", and the ragged bar ends are the figures saying how much
+   they had to say. Fixed columns would have to be as wide as the longest
+   figure on any board, which spends that room on every row that does not need
+   it. */
+.mrow{display:flex;align-items:center;gap:9px;margin:6px 0;
+  font-family:var(--mono);font-size:10px}
+/* A label is as wide as its name, at least four characters, so the bar starts
+   the same gap after the name as it ends before the figure. Four-character
+   names (SSD1, HDD2, VRAM, SWAP) line their bars up; a three-letter one sits
+   one character further off; a longer one pushes its bar along. */
+.mrow>.lbl{flex:0 0 auto;min-width:4ch;color:var(--muted);letter-spacing:.02em}
+/* Every row name the same size and grey: RAM, SWAP, CACHE, GPU, VRAM, ENCODE,
+   DECODE, WI-FI. "dim" used to make some smaller and fainter, but it reached
+   only direct rows, so the rest fell back to bright ink. */
+.mrow>.lbl.dim,.duo .half>.lbl,.net-strip>.lbl{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.02em}
+.mrow>.fig{flex:none;text-align:right;color:var(--ink-2);font-weight:400;font-size:11px;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Swap and the cache share one line: neither is a drive, and two halves cost
+   one row where two rows cost two. */
+.mrow.duo{gap:14px}
+.duo .half{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+.duo .half>.lbl{flex:0 0 auto;min-width:4ch}
+.duo .half>.fig{font-size:10px}
+/* Which disk these bytes are actually on. Small enough to read as an
+   annotation on the figure rather than a value of its own.
+   Named `on-disk`, not `on`. A bare `.on` is what this was, and `on` is the
+   word this stylesheet already uses for "selected" — on the toolbar buttons,
+   the segmented control, a file row. Declared later in the file, it beat
+   `.tbtn`'s own font-size on source order and rendered the selected toolbar
+   button at 8px in a monospace face with 1px of padding. Every other `.on`
+   here is scoped to its component; this one was not. */
+.on-disk{flex:none;font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;
+  color:var(--muted);border:1px solid var(--panel-line);border-radius:3px;
+  padding:1px 3px;line-height:1.35}
+.mfill.aqua{background:var(--sheen),linear-gradient(var(--aqua-1),var(--aqua-2))}
+.mfill.gpu{background:var(--sheen),linear-gradient(var(--gpu-1),var(--gpu-2))}
+.mfill.mirror{background:var(--sheen),linear-gradient(var(--gpu-1),var(--gpu-2))}
+.on-disk.mirror{color:var(--gpu-2);border-color:var(--gpu-2);font-weight:600}
+.on-disk.temp{color:var(--muted)}
+.mrow.drow.has-parts{cursor:pointer}
+/* A part sits under its drive in the same columns: the name takes the space
+   of the spinner and "SSD1", so the bar starts where the drive's bar does. */
+.mrow.drow.part{margin-top:-2px}
+.mrow.drow.part>.lbl{flex:0 0 calc(4ch + 14px);box-sizing:border-box;padding-left:8px;white-space:nowrap;opacity:.8}
+.mrow.drow.part>.meter{height:4px}
+.mrow.drow.part>.fig{color:var(--muted)}
+.on-disk.temp.blank{visibility:hidden}
+.on-disk.temp.hot{color:#fff;background:var(--crit);border-color:var(--crit);font-weight:600}
+/* Drive rows share one set of columns, so every bar is the same length and
+   the figures, mounts and temperatures line up down the list. The figure fits
+   "998.94 GB / 984.60 GB"; the mount box fits "/srv/storage" and is the same
+   size for "/" as for the longest. */
+.mrow.drow>.fig{flex:0 0 20.5ch}
+/* The box's width includes its padding and border (8px) and its letter
+   spacing, so the text widths get that added rather than cut to an ellipsis. */
+.mrow.drow>.on-disk{flex:0 0 calc(13ch + 10px);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow.drow>.on-disk.temp{flex:0 0 calc(4ch + 10px)}
+/* A phone has no room for fixed columns: the bar would shrink to a stub. */
+@media (max-width:520px){.mrow.drow>.fig,.mrow.drow>.on-disk,.mrow.drow>.on-disk.temp{flex:none}}
+/* Stacked on a phone, where two meters side by side leave neither enough bar
+   to read. Once stacked they are ordinary rows and have to line up with the
+   ones above: same label column, same margins, nothing about them special. */
+@media (max-width:520px){
+  .mrow.duo{flex-direction:column;align-items:stretch;gap:0;margin:0}
+  .duo .half{margin:6px 0}
+}
+.meter{height:8px;flex:1;min-width:24px;overflow:hidden;
+  border:1px solid var(--meter-edge);border-radius:2px;
+  background:var(--groove);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+.mfill{display:block;height:100%;border-radius:1px;transition:width .35s ease;
+  background:var(--sheen),linear-gradient(var(--aqua-1),var(--aqua-2));
+  box-shadow:inset 0 1px var(--gloss)}
+.mfill.green{background:var(--sheen),linear-gradient(var(--ok-1),var(--ok))}
+.mfill.orange{background:linear-gradient(var(--warn-1),var(--warn))}
+.mfill.red{background:linear-gradient(var(--crit-1),var(--crit))}
+
+/* Fixed tracks, not space-between. With space-between each reading sits
+   wherever its own text width puts it, so "3.1 W" on one board and "2.4 W" on
+   the next land in different places and no two cards in the row agree. Equal
+   columns line the temperature, the power and the uptime up across the whole
+   fleet, whatever the card's width.
+   margin-top:auto pins the whole strip to the floor of the card, so a board
+   with one drive keeps its footer level with a board that has three — the
+   slack collects above the rule instead of leaving the readings mid-card. */
+.c-meta{display:grid;grid-template-columns:1fr 1fr 1fr auto;align-items:center;gap:8px;
+  margin:auto 0 11px;padding-top:12px;border-top:1px solid var(--panel-line);
+  font-family:var(--mono);color:var(--ink-2);
+  font-variant-numeric:tabular-nums}
+/* Named, because "9h 33m" is not guessable and the row had the room. */
+.c-meta>span:not(.chip){display:flex;align-items:baseline;gap:6px;min-width:0}
+.c-meta em{flex:none;font-style:normal;font-size:9px;letter-spacing:.09em;color:var(--faint)}
+.c-meta b{font-weight:400;font-size:13px;color:var(--ink);white-space:nowrap}
+/* A figure and its label are one thing and must break as one — never "2.3"
+   above "W". */
+.c-meta em{white-space:nowrap}
+.c-meta svg{flex:none;color:var(--muted);align-self:center}
+.chip{justify-self:end;display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:10px;
+  font-family:var(--mono);font-size:10.5px;border:1px solid transparent}
+.chip.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 35%,transparent);
+  background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent);
+  background:color-mix(in srgb,var(--warn) 12%,transparent)}
+
+/* ── Process table inside the card ── */
+/* The old card had a spacer above the table; the two-column body does not,
+   so the gap is set here. */
+.c-body+.ptable{margin-top:16px}
+.ptable{border:1px solid var(--panel-edge);border-radius:5px;background:var(--panel);
+  overflow:hidden;box-shadow:inset 0 1px var(--gloss-soft)}
+.pscroll{overflow-x:auto}
+.prow{display:grid;grid-template-columns:minmax(90px,1.4fr) 56px 68px 56px 62px 46px;
+  align-items:center;gap:8px;padding:8px 12px;font-family:var(--mono);font-size:11.5px;
+  font-variant-numeric:tabular-nums;border-bottom:1px solid var(--panel-line);white-space:nowrap}
+.prow:last-child{border-bottom:0}
+.phead{font-size:9px;letter-spacing:.1em;color:var(--faint);padding:7px 12px 6px;
+  background:transparent;border-bottom:1px solid var(--panel-edge)}
+.phead button{padding:0;border:0;background:transparent;color:inherit;font:inherit;
+  letter-spacing:inherit;cursor:pointer;text-align:right}
+.phead button:hover{color:var(--link)}
+.phead .sorted{color:var(--link);font-weight:500}
+.prow>:not(:first-child){text-align:right}
+.pname{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+.prow.body:hover{background:var(--row-hover)}
+.pval{color:var(--muted)}
+.pval.hot{color:var(--crit);font-weight:500}
+.pval.lead{color:var(--link);font-weight:500}
+
+.c-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;
+  font-family:var(--mono);font-size:10px;color:var(--muted)}
+/* Aqua bevel, sized down — same construction as the toolbar buttons. */
+.inspect{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;
+  border:1px solid var(--btn-edge);border-radius:5px;color:var(--ink-2);
+  background:linear-gradient(var(--btn-1),var(--btn-2));
+  box-shadow:0 1px 2px rgba(24,56,69,.16),inset 0 1px var(--gloss-edge);
+  font-family:inherit;font-size:11px;font-weight:700;
+  transition:transform .12s,border-color .12s}
+.inspect:hover{border-color:var(--gel-edge);color:var(--link)}
+.inspect:active{transform:scale(.97);
+  box-shadow:inset 0 1px 3px rgba(24,56,69,.25)}
+
+/* ── Toolbar stats ── */
+.tb-left,.tb-right{display:flex;align-items:center;gap:14px;min-width:0}
+.tb-center{display:flex;align-items:center;gap:4px;
+  position:absolute;left:50%;transform:translateX(-50%)}
+.tb-center .tbtn{padding:8px 18px;font-size:13px;font-weight:800;letter-spacing:.02em}
+.tb-stat{display:flex;align-items:center;gap:5px;white-space:nowrap;
+  font-family:var(--mono);font-size:10px;color:var(--muted)}
+.tb-stat svg{flex:none;color:var(--faint)}
+.tb-stat .tb-label{font-size:9px;letter-spacing:.06em;color:var(--faint)}
+.tb-stat b{color:var(--ink);font-size:11px;font-weight:500}
+.tb-stat small{font-size:9px;color:var(--muted)}
+.tb-stat.warn b{color:var(--warn)}
+.tb-stat.crit b{color:var(--crit)}
+
+/* ── Threads: a row of their own ──
+   Twelve bars beside two graphs left neither enough room to read. */
+.cores{display:flex;gap:10px;margin:8px 0 6px;padding:10px 12px 8px;
+  border:1px solid var(--panel-line);border-radius:5px;background:var(--panel);
+  box-shadow:inset 0 1px var(--gloss-soft)}
+.cores-scale{display:flex;flex-direction:column;justify-content:space-between;height:58px;margin-top:14px;
+  font-family:var(--mono);font-size:9px;color:var(--muted);text-align:right}
+.cores-grid{flex:1;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:6px}
+@container (max-width:520px){
+  .cores-grid.many{grid-template-columns:repeat(6,minmax(0,1fr));row-gap:10px}
+  .cores-scale{display:none}
+}
+.core{min-width:0;text-align:center}
+.core b{display:block;margin-bottom:3px;font-family:var(--mono);font-size:10px;font-weight:400;
+  color:var(--ink-2);font-variant-numeric:tabular-nums}
+.core-track{height:58px;display:flex;align-items:flex-end;overflow:hidden;border-radius:3px;
+  background:var(--groove-v);border:1px solid var(--meter-edge);box-shadow:inset 0 1px 2px rgba(0,0,0,.14)}
+.core-track i{display:block;width:100%;min-height:3px;border-radius:2px 2px 0 0;
+  background:var(--sheen),linear-gradient(90deg,var(--aqua-1),var(--aqua-2));
+  transition:height .5s cubic-bezier(.4,0,.2,1)}
+.core-track i.warm{background:linear-gradient(90deg,var(--warn-1),var(--warn))}
+.core small{display:block;margin-top:4px;color:var(--muted);font-family:var(--mono);font-size:9px}
+
+/* ── Temperature and power, together ── */
+.sense{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:8px 0 6px;
+  border:1px solid var(--panel-line);border-radius:5px;background:var(--panel);
+  overflow:hidden;box-shadow:inset 0 1px var(--gloss-soft)}
+.s-cell{min-width:0;padding:8px 12px 9px}
+.s-cell+.s-cell{border-left:1px solid var(--panel-line)}
+@container (max-width:520px){
+  .sense{grid-template-columns:minmax(0,1fr)}
+  .s-cell+.s-cell{border-left:0;border-top:1px solid var(--panel-line)}
+}
+.s-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.s-label{color:var(--faint);font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.s-head b{font-family:var(--mono);font-size:14px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums}
+.s-head b.t-crit{color:var(--crit)}
+.s-head .chip{margin-left:auto;font-size:9px}
+.chip.muted{color:var(--muted);border-color:var(--panel-line)}
+.s-none{display:flex;align-items:center;height:40px;color:var(--faint);font-family:var(--mono);font-size:10px}
+.legend{display:flex;gap:12px;margin-top:5px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{display:block;width:12px;border-top:2px solid var(--aqua-2)}
+.legend i.crit{border-top-color:var(--crit)}
+.legend i.dash{border-top:2px dashed var(--gpu-2)}
+.legend em{font-style:normal;color:var(--ink-2)}
+
+/* ── Board: fans and supply rails ── */
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:8px 0 6px;
+  border:1px solid var(--panel-line);border-radius:5px;background:var(--panel);overflow:hidden;
+  box-shadow:inset 0 1px var(--gloss-soft)}
+@container (max-width:520px){.board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bcell{min-width:0;display:flex;flex-direction:column;gap:2px;padding:7px 10px;
+  box-shadow:inset -1px -1px 0 var(--panel-line)}
+.bcell em{font-style:normal;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bcell b{font-family:var(--mono);font-size:13px;font-weight:400;color:var(--ink);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.bcell b small{margin-left:2px;font-size:9px;color:var(--muted)}
+.bcell .spin,.fan-val .spin{display:inline-block;width:9px;height:9px;margin-right:5px;vertical-align:-1px;border-radius:50%;
+  border:1.5px solid var(--aqua-2);border-right-color:transparent;animation:fan 1.6s linear infinite}
+@keyframes fan{to{transform:rotate(360deg)}}
+.drow .spin{display:inline-block;width:8px;height:8px;margin-right:6px;vertical-align:-1px;border-radius:50%;
+  border:1.5px solid var(--aqua-2);border-right-color:transparent;animation:fan 1.6s linear infinite}
+.drow .spin.idle{border-color:var(--muted);opacity:.35;animation:none}
+@media (prefers-reduced-motion:reduce){.bcell .spin,.fan-val .spin,.drow .spin{animation:none}}
+/* A fan the controller takes manual speeds for: the tile opens its slider. */
+button.bcell.fan-pick{border:0;margin:0;background:none;text-align:left;color:inherit;font:inherit}
+.bcell.fan-pick:hover{background:var(--gloss-soft)}
+.bcell.fan-pick.sel{background:color-mix(in srgb,var(--aqua-2) 10%,transparent);
+  box-shadow:inset -1px -1px 0 var(--panel-line),inset 0 -2px 0 var(--aqua-2)}
+.bcell .fan-hand{margin-left:5px;font-style:normal;font-size:8px;letter-spacing:.09em;color:var(--aqua-2)}
+.fan-ctl{margin:0 0 6px;padding:2px 10px;border:1px solid var(--panel-line);border-radius:5px;
+  background:var(--panel);box-shadow:inset 0 1px var(--gloss-soft)}
+.fan-ctl .mrow{gap:10px}
+.fan-ctl .fig{min-width:4ch}
+.fan-ctl .seg button{padding:3px 10px;font-size:10px}
+/* Drawn as one of the card's meters with a handle: the same groove and the
+   same aqua fill, up to --v, the slider's position. */
+.fan-slider{flex:1;min-width:24px;height:14px;margin:0;background:none;cursor:pointer;-webkit-appearance:none;appearance:none}
+.fan-slider::-webkit-slider-runnable-track{height:8px;border:1px solid var(--meter-edge);border-radius:2px;
+  background:linear-gradient(90deg,var(--aqua-1),var(--aqua-2)) 0/var(--v,0%) 100% no-repeat,var(--groove);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+.fan-slider::-moz-range-track{height:8px;border:1px solid var(--meter-edge);border-radius:2px;background:var(--groove)}
+.fan-slider::-moz-range-progress{height:8px;border-radius:1px;background:linear-gradient(var(--aqua-1),var(--aqua-2))}
+.fan-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-4px;border-radius:50%;
+  border:1px solid var(--gel-edge);background:linear-gradient(var(--gel-1),var(--gel-2));box-shadow:0 1px 2px rgba(0,0,0,.25),inset 0 1px var(--gloss)}
+.fan-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;
+  border:1px solid var(--gel-edge);background:linear-gradient(var(--gel-1),var(--gel-2))}
+.fan-note{margin:0 0 6px;font-family:var(--mono);font-size:9px;color:var(--muted)}
+
+.mgraph-wrap{position:relative;min-width:0}
+.mgraph{width:100%;height:40px;display:block}
+.mgraph .mgl{stroke:var(--panel-line);stroke-width:1}
+.mg-lab{position:absolute;right:3px;color:var(--muted);font-family:var(--mono);font-size:9px;
+  letter-spacing:.04em;opacity:.85;pointer-events:none}
+.mg-max{top:0} .mg-min{bottom:0}
+
+/* Network strip — full width graph like the sensor row */
+.net-strip{display:flex;align-items:center;gap:9px;margin:8px 0 0;
+  font-family:var(--mono);font-size:10px}
+.net-strip>.lbl{flex:0 0 auto;min-width:4ch}
+.net-graph-wrap{flex:1;min-width:40px}
+.net-graph{height:24px}
+.net-graph-wrap{border:1px solid var(--panel-line);border-radius:4px;background:var(--panel)}
+.net-peak{top:1px;font-size:8.5px}
+.net-rates{flex:none;font-family:var(--mono);font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.c-spacer{flex:1;min-height:14px}
+
+/* ── Fleet strip ── */
+.striprule{display:flex;align-items:center;gap:12px;margin:20px 0 10px;color:var(--faint);
+  font-family:var(--mono);font-size:9px;letter-spacing:.13em}
+.striprule div{height:1px;flex:1;background:var(--rule)}
+/* Status counts left, resource readings right — paired by what they measure. */
+.strip{display:flex;justify-content:space-between;align-items:stretch;gap:12px;flex-wrap:wrap}
+.sgroup{display:flex;gap:12px;flex-wrap:wrap}
+.pair{display:flex;border:1px solid var(--panel-edge);border-radius:5px;background:var(--panel);
+  box-shadow:inset 0 1px var(--gloss-soft);overflow:hidden}
+.cell{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-right:1px solid var(--panel-line)}
+.pair .cell:last-child{border-right:0}
+.ticon{display:grid;place-items:center;width:28px;height:28px;border-radius:5px;color:#fff;flex:none;
+  box-shadow:inset 0 1px var(--gloss),0 1px 2px rgba(30,60,72,.22)}
+.ticon.aqua{background:linear-gradient(#83d5e7,#2c9bbd)}
+.ticon.green{background:linear-gradient(#98dfa5,#46a868)}
+.ticon.orange{background:linear-gradient(#ffd17e,#eb932a)}
+.ticon.grey{background:linear-gradient(#b9c8cf,#7c8d96)}
+.ticon.red{background:linear-gradient(#ff9f99,#d4514c)}
+.cell div{display:flex;flex-direction:column;min-width:0}
+.cell div>span{color:var(--faint);font-size:9px;letter-spacing:.02em}
+.cell strong{color:var(--ink);font-family:var(--mono);font-size:16px;line-height:1.15;
+  font-variant-numeric:tabular-nums}
+.cell strong.warnv{color:var(--warn)}
+.cell strong.critv{color:var(--crit)}
+.cell small{color:var(--muted);font-size:9px}
+
+.statusbar{display:flex;justify-content:space-between;gap:12px;padding:7px 13px;color:var(--muted);
+  background:linear-gradient(var(--bar-2),var(--bar-edge));border-top:1px solid var(--bar-edge);
+  font-family:var(--mono);font-size:9px}
+.statusbar span{display:flex;align-items:center;gap:5px}
+
+/* Four readings across a phone leaves each about eighty pixels, which is not
+   enough for "UPTIME 10h 44m" and was the reason it wrapped. Two rows of two
+   gives every one of them room, and the chip takes the corner. */
+@media (max-width:560px){
+  .c-meta{grid-template-columns:1fr 1fr;gap:9px 12px}
+  .c-meta b{font-size:12px}
+  .c-meta em{font-size:8.5px}
+  .chip{font-size:10px;padding:3px 8px}
+}
+
+@media (max-width:900px){
+  body{padding:0;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom)}
+  .shell{width:100%;border-radius:0;border-left:0;border-right:0;min-height:100vh}
+  .content{padding:16px 13px 18px}
+  .grid{grid-template-columns:1fr}
+  .strip{flex-direction:column}
+  .sgroup{flex-direction:column}
+  .pair{width:100%}
+  .cell{flex:1;min-width:0}
+  .prow{gap:8px;padding:9px 11px}
+  .head{gap:12px}
+  .head-r{width:100%;justify-content:space-between}
+  .seg{flex:1}
+  .seg button{flex:1;padding:10px 8px}
+  .toolbar{overflow-x:auto;flex-wrap:wrap;justify-content:center;gap:6px 14px}
+  .tb-left{width:100%;justify-content:center}
+  .tb-center{position:static;transform:none}
+  .tb-right{margin-left:auto}
+}
+
+/* ── Phone ───────────────────────────────────────────────────────────────
+   Four value columns need ~266px, which leaves nothing for the process
+   name on a 390px screen. Only the column being sorted on is shown; the
+   others are a tap away on the sort control. Paired readouts stack. */
+@media (max-width:560px){
+  .content{padding:14px 11px 16px}
+  .card{padding:13px 13px 11px}
+
+  /* Eight items in a 375px bar is one item too many: the toolbar wrapped and
+     left the refresh button alone on a second row, which reads as a mistake
+     rather than a layout. The LIVE pill is the one that goes, because the line
+     directly under it already says SCANNING against the same green LED and the
+     status bar at the foot says "live telemetry" — it was the third statement
+     of one fact, and the only one paying for it in width. Nowrap and the
+     scroll it inherits are the backstop for a 320px screen, so a bar that
+     still cannot fit slides instead of breaking. */
+  .toolbar{flex-wrap:wrap;padding:6px 9px;justify-content:center;gap:4px 10px}
+  .toolbar .live,.toolbar .tdiv{display:none}
+  .tb-left{width:100%;justify-content:center;gap:10px}
+  .tb-center{position:static;transform:none}
+  .tbtn{padding:7px 10px}
+
+  .prow{gap:10px;padding:10px 12px}
+
+  .pair{flex-direction:column}
+  .cell{border-right:0;border-bottom:1px solid var(--panel-line)}
+  .pair .cell:last-child{border-bottom:0}
+
+  .sensor-row{flex-direction:column}
+  .s-graph-cell{border-right:0;border-bottom:1px solid var(--panel-line)}
+  .s-cores{border-right:0;border-bottom:1px solid var(--panel-line);justify-content:center}
+  .c-meta{flex-wrap:wrap;gap:10px}
+  .c-role{margin-bottom:10px}
+  h1{font-size:20px}
+  .statusbar{flex-direction:column;gap:3px}
+  .tbtn{padding:9px 13px}
+  .ibtn{width:36px;height:34px}
+}
+
+/* ── Shared page furniture ─────────────────────────────────────────────── */
+.page-stack{display:flex;flex-direction:column}
+.page-heading,.detail-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+  margin-bottom:18px;flex-wrap:wrap}
+.detail-heading{align-items:center}
+.eyebrow{display:flex;gap:7px;align-items:center;margin:0 0 7px;color:var(--muted);
+  font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.13em}
+.subhead{margin:7px 0 0;color:var(--muted);font-size:12px}
+.title-chip{display:inline-block;vertical-align:middle;margin-left:7px;padding:4px 7px;
+  border:1px solid var(--panel-edge);border-radius:4px;color:var(--link);background:var(--panel);
+  font-family:var(--mono);font-size:9px}
+.back-link{display:inline-flex;align-items:center;gap:5px;margin-bottom:16px;padding:0;border:0;
+  color:var(--link);background:transparent;font-size:11px;font-weight:700}
+
+.discovery-banner,.warning-banner,.app-note{display:flex;align-items:center;gap:11px;padding:11px 14px;
+  margin-bottom:18px;border:1px solid var(--panel-edge);border-radius:5px;color:var(--ink-2);
+  background:var(--panel);box-shadow:inset 0 1px var(--gloss-soft);font-size:11px}
+.discovery-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:5px;color:#fff;
+  background:linear-gradient(var(--gel-1),var(--gel-2));flex:none}
+.discovery-banner strong,.warning-banner strong,.app-note strong{display:block;color:var(--ink);font-size:11px}
+.discovery-banner span,.warning-banner span,.app-note span{display:block;margin-top:2px;color:var(--muted)}
+.warning-banner{border-color:color-mix(in srgb,var(--warn) 45%,transparent);
+  background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.warning-banner>svg{color:var(--warn);flex:none}
+.warning-banner strong{color:var(--warn)}
+
+.offline-card{opacity:.8}
+.offline-copy{display:flex;justify-content:space-between;align-items:center;min-height:47px;
+  color:var(--faint);font-size:11px}
+
+/* ── Apps ──────────────────────────────────────────────────────────────── */
+.app-summary{display:flex;flex-direction:column;align-items:flex-end}
+.app-summary strong{color:var(--link);font-family:var(--mono);font-size:21px;font-variant-numeric:tabular-nums}
+.app-summary span{color:var(--faint);font-size:10px}
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:13px}
+.app-tile{position:relative;display:flex;flex-direction:column;min-height:168px;padding:14px 13px 12px;cursor:pointer;
+  border:1px solid var(--card-edge);border-radius:7px;color:var(--ink-2);text-decoration:none;
+  background:linear-gradient(145deg,var(--card-1),var(--card-2));
+  box-shadow:0 2px 4px rgba(37,72,85,.13),inset 0 1px var(--gloss-soft);
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s}
+.app-tile:hover{transform:translateY(-3px);border-color:var(--gel-edge);
+  box-shadow:0 7px 12px rgba(37,72,85,.18),inset 0 1px var(--gloss-soft)}
+.app-tile:active{transform:scale(.98)}
+.app-icon{display:grid;place-items:center;width:50px;height:50px;margin-bottom:18px;border-radius:12px;
+  color:#fff;font-size:26px;font-weight:800;text-shadow:0 2px 2px rgba(0,0,0,.22);
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.45),0 2px 3px rgba(0,0,0,.22)}
+.app-icon.purple{background:linear-gradient(145deg,#d889ec,#793da9)}
+.app-icon.blue{background:linear-gradient(145deg,#78d9f3,#2774b7)}
+.app-icon.orange{background:linear-gradient(145deg,#ffcb79,#d76e22)}
+.app-icon.green{background:linear-gradient(145deg,#9ae6b2,#268d60)}
+.app-icon.pink{background:linear-gradient(145deg,#ffabc4,#be4f82)}
+/* Artwork carries its own colour, so the gradient and the gloss come off. The
+   icons are square — the tile's own radius is what rounds them. */
+.app-icon.art{overflow:hidden;background:none;box-shadow:none}
+.app-icon.art img{display:block;width:100%;height:100%;object-fit:contain}
+.app-info{display:flex;flex-direction:column}
+.app-info strong{color:var(--ink);font-size:13px}
+.app-info span{margin-top:3px;color:var(--muted);font-size:9px}
+.app-info small{margin-top:8px;color:var(--faint);font-family:var(--mono);font-size:9px}
+/* The tile is an anchor, so the switch cannot live inside it — a button
+   nested in a link is invalid markup and eats the click. The slot is the
+   positioning context that lets the two be siblings and still look like one
+   object. */
+.app-slot{position:relative;display:flex}
+.app-slot>.app-tile{flex:1;min-width:0}
+.app-power{position:absolute;top:10px;right:10px;z-index:1;
+  display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:9px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.04em;cursor:pointer;
+  color:var(--ink-2);background:linear-gradient(var(--btn-1),var(--btn-2));
+  border:1px solid var(--btn-edge);box-shadow:inset 0 1px var(--gloss)}
+/* The tile lifts on hover and the switch is its sibling, not its child, so
+   without this it stays behind while the card moves out from under it. */
+.app-slot:hover .app-power{transform:translateY(-3px)}
+.app-power{transition:transform .16s ease,filter .16s ease}
+.app-power:hover{filter:brightness(1.06)}
+.app-power:active{filter:brightness(.94)}
+.app-power:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.app-power:disabled{opacity:.55;cursor:default}
+/* Running is the state worth marking: the client is live and the tunnel is
+   carrying traffic, which is not the state to leave it in by accident. */
+.app-power.on{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 40%,transparent);
+  background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.app-power svg{flex:none}
+/* The tunnel, on the tile. Green only when there is an address to show:
+   "the pod is running" is not the claim being made here. */
+.app-vpn{display:flex;align-items:center;gap:5px;margin-top:6px;padding-top:6px;
+  border-top:1px solid var(--panel-line);
+  font-family:var(--mono);font-size:9px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-vpn.up{color:var(--ok)}
+.app-vpn svg{flex:none}
+/* The ellipsis on .app-vpn does nothing while the span inside it refuses to
+   be narrower than "via 203.0.113.9 · Netherlands". The tile is a grid item,
+   so that width was not truncated, it was added to the column. */
+.app-vpn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.app-note.bad{border-color:color-mix(in srgb,var(--crit) 40%,transparent);
+  background:color-mix(in srgb,var(--crit) 9%,transparent)}
+.app-note.bad strong{color:var(--crit)}
+
+/* A column, not a row. Sharing one line meant the two competed for width and
+   the status word lost: "healthy" rendered as "heal…" next to a full-length
+   "( Open in Browser )". A line each costs the tile about 19px and lets both
+   say what they are. */
+.app-health{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  margin-top:auto;padding-top:10px;
+  color:var(--muted);font-family:var(--mono);font-size:9px}
+.app-status{display:flex;align-items:center;gap:5px;min-width:0;max-width:100%}
+/* Under the status line, at the tile's left edge rather than pushed right.
+   Still in flow rather than floated over a corner: a corner belongs to
+   whatever row happens to be last, which on the torrent tile is the VPN line.
+   Padding for the thumb, pulled back horizontally so the text still lands on
+   the tile's own 13px edge and downward so it does not add a second gap. */
+.app-browser{align-self:flex-start;padding:6px 9px;margin:0 -9px -6px;
+  color:var(--faint);text-decoration:none;white-space:nowrap;
+  font-family:var(--mono);font-size:9px;letter-spacing:.02em;
+  transition:color .16s ease}
+.app-browser:hover{color:var(--link)}
+.app-browser:focus-visible{outline:2px solid var(--link);outline-offset:-1px}
+/* The word has its own line now, so there is room for all of it. The ellipsis
+   stays only as a floor for a tile narrower than any this grid produces. */
+.app-status span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-note{margin-top:21px}
+.app-note>svg{color:var(--link);flex:none}
+
+/* ── Storage ────────────────────────────────────────── */
+/* The action bar takes the space the eyebrow-and-headline block used to, and
+   unlike it, says what is selected and what can be done to it. */
+.fx-bar{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;padding:8px 11px;margin-bottom:9px;
+  border:1px solid var(--panel-edge);border-radius:6px;background:var(--panel);
+  box-shadow:inset 0 1px var(--gloss-soft)}
+.fx-sel{display:flex;flex-direction:column;gap:2px;min-width:0;flex:0 1 auto}
+.fx-sel strong{color:var(--ink);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-meta{display:flex;gap:8px;min-width:0;color:var(--muted);font-family:var(--mono);font-size:9px}
+.fx-meta>span:first-child{flex:none}
+/* Long paths ellipsize from the left so the filename survives. Only this span
+   is reversed: putting direction:rtl on the whole line moved the size to the
+   end of it. */
+.fx-where{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  direction:rtl;text-align:left}
+/* Back and forward, at the left edge where Finder keeps them. */
+.fx-nav{display:flex;gap:2px;flex:none}
+.fx-nav button{display:grid;place-items:center;width:26px;height:24px;padding:0;
+  border:1px solid var(--btn-edge);border-radius:5px;
+  background:linear-gradient(var(--btn-1),var(--btn-2));color:var(--ink-2);cursor:pointer}
+.fx-nav button:disabled{opacity:.36;cursor:default}
+.fx-nav button:first-child{border-radius:5px 0 0 5px}
+.fx-nav button:last-child{border-radius:0 5px 5px 0;margin-left:-1px}
+.fx-nav .flip{transform:rotate(180deg)}
+
+/* The actions sit between the title and the search, and give up their space
+   first: they are the part with somewhere else to go. */
+.fx-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;flex:1 1 auto;min-width:0}
+/* Wide enough for the full row, so the overflow button is not offered twice. */
+.fx-more{display:none;font-size:14px;line-height:1;padding:3px 8px}
+.fx-act{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;
+  border:1px solid var(--btn-edge);border-radius:5px;
+  background:linear-gradient(var(--btn-1),var(--btn-2));
+  color:var(--ink-2);font:inherit;font-size:11px;cursor:pointer;
+  box-shadow:inset 0 1px var(--gloss-edge)}
+.fx-act:hover:not(:disabled){filter:brightness(1.05)}
+.fx-act:active:not(:disabled){box-shadow:inset 0 1px 3px rgba(0,0,0,.2)}
+.fx-act:disabled{opacity:.38;cursor:default}
+.fx-act.danger:not(:disabled){color:var(--crit);border-color:var(--crit)}
+/* The view switch sits at the far end, away from the destructive buttons. */
+.fx-view{display:flex;margin-left:auto}
+.fx-view button{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+  border:1px solid var(--btn-edge);background:linear-gradient(var(--btn-1),var(--btn-2));
+  color:var(--ink-2);font:inherit;font-size:11px;cursor:pointer}
+.fx-view button:first-child{border-radius:5px 0 0 5px}
+.fx-view button:last-child{border-radius:0 5px 5px 0;margin-left:-1px}
+.fx-view button.on{background:linear-gradient(var(--gel-1),var(--gel-2));
+  border-color:var(--gel-edge);color:var(--gel-ink)}
+
+/* Miller columns. The strip scrolls sideways and each column scrolls down, so
+   a deep tree never widens the page. */
+.fx-strip{display:flex;overflow-x:auto;overflow-y:hidden;height:min(62vh,560px);
+  border:1px solid var(--panel-edge);border-radius:6px;background:var(--panel);
+  box-shadow:0 2px 4px rgba(44,80,91,.10),inset 0 1px var(--gloss-soft)}
+.fx-col{display:flex;flex-direction:column;flex:0 0 268px;min-width:0;height:100%;
+  overflow-y:auto;border-right:1px solid var(--panel-line)}
+.fx-row{display:flex;align-items:center;gap:9px;width:100%;padding:4px 8px;border:0;
+  background:none;font:inherit;text-align:left;cursor:pointer;flex:none}
+/* A dotfile is dimmed, never dropped — findable, but not competing with the
+   things a person named themselves. */
+.fx-row.hidden .fx-name,.fx-tile.hidden .fx-tname{opacity:.62}
+.fx-row.on .fx-size,.fx-row.on .fx-name,.fx-row.on .fx-arrow{color:#fff}
+/* Clicking under the last row targets the column's own folder. */
+.fx-pad{flex:1 1 auto;min-height:56px}
+.fx-note.bad{color:var(--warn)}
+@media (prefers-reduced-motion:reduce){.fx-spinner{animation:none}}
+
+/* Grid. Thumbnails are requested by the <img> itself, lazily, so the board
+   only makes one for a tile actually scrolled into view. */
+.fx-grid{display:grid;gap:2px 6px;padding:14px;height:min(62vh,560px);overflow-y:auto;
+  grid-template-columns:repeat(auto-fill,minmax(118px,1fr));align-content:start;
+  border:1px solid var(--panel-edge);border-radius:6px;background:var(--panel);
+  box-shadow:0 2px 4px rgba(44,80,91,.10),inset 0 1px var(--gloss-soft)}
+.fx-tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px 8px;
+  border:1px solid transparent;border-radius:6px;background:none;font:inherit;cursor:pointer}
+.fx-tile:hover .fx-tname{background:var(--row-hover)}
+/* Finder highlights the label, not the whole cell. Tinting the entire tile
+   swallows the icon's own colour and makes a selected folder hard to read. */
+.fx-tile.on .fx-tname{background:var(--link);color:#fff}
+.fx-tile.on .fx-tsize{color:var(--ink-2)}
+.fx-shot{display:grid;place-items:center;width:100%;height:58px;overflow:hidden;
+  color:var(--faint)}
+.fx-shot img{max-width:100%;max-height:58px;object-fit:cover;display:block;border-radius:3px;
+  box-shadow:0 1px 3px var(--shadow)}
+.fx-tname{max-width:100%;padding:2px 7px;border-radius:9px;color:var(--ink);font-size:11.5px;
+  line-height:1.35;text-align:center;overflow-wrap:anywhere;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fx-tsize{color:var(--muted);font-family:var(--mono);font-size:9px}
+
+/* A tag dot, in front of the name in both views, as Finder draws it. The
+   colour is inline because it comes from the file, not from the theme. */
+.fx-dot{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;
+  vertical-align:baseline;box-shadow:inset 0 0 0 1px rgba(0,0,0,.16)}
+
+/* ── Toolbar: search, tags, view ───────────────────────────────────────── */
+.fx-tools{display:flex;align-items:center;gap:8px;margin-left:auto}
+/* The toolbar group owns the push to the right; the toggle inside it must
+   not push again, or the search field and the toggle drift apart. */
+.fx-tools .fx-view{margin-left:0}
+.fx-tagbtn{display:grid;place-items:center;padding:4px 7px}
+.fx-find{display:flex;align-items:center;gap:6px;padding:3px 8px;min-width:170px;
+  border:1px solid var(--btn-edge);border-radius:12px;background:var(--btn-1);color:var(--muted)}
+.fx-find:focus-within{border-color:var(--link);box-shadow:0 0 0 2px var(--row-hover)}
+.fx-find input{flex:1;min-width:0;border:0;background:none;color:var(--ink);font:inherit;
+  font-size:11.5px;outline:none}
+.fx-find input::-webkit-search-cancel-button{display:none}
+.fx-find-x{border:0;background:none;color:var(--muted);font-size:13px;line-height:1;cursor:pointer;padding:0 2px}
+.fx-find-x:hover{color:var(--ink)}
+
+/* ── Tag swatches ──────────────────────────────────────────────────────── */
+.fx-tagrow{display:flex;align-items:center;gap:6px;padding:6px 8px}
+.fx-swatch{width:15px;height:15px;padding:0;border-radius:50%;cursor:pointer;
+  border:1px solid rgba(0,0,0,.22);background:var(--swatch)}
+.fx-swatch:hover:not(:disabled){transform:scale(1.15)}
+.fx-swatch.on{box-shadow:0 0 0 2px var(--bar-1),0 0 0 3.5px var(--link)}
+.fx-swatch.none{background:none;border-style:dashed;border-color:var(--muted);position:relative}
+.fx-swatch.none::after{content:"";position:absolute;inset:5px 1px auto;height:1px;
+  background:var(--muted);transform:rotate(-45deg)}
+.fx-swatch:disabled{opacity:.34;cursor:default}
+
+/* Right-click menu. Same actions as the bar, at the cursor. */
+.fx-scrim{position:fixed;inset:0;z-index:60}
+.fx-menu{position:fixed;z-index:61;min-width:168px;padding:4px;
+  border:1px solid var(--panel-edge);border-radius:6px;background:var(--bar-1);
+  box-shadow:0 10px 26px var(--shadow)}
+.fx-menu button{display:block;width:100%;padding:5px 8px;border:0;border-radius:4px;
+  background:none;color:var(--ink-2);font:inherit;font-size:12px;text-align:left;cursor:pointer}
+.fx-menu button:hover:not(:disabled){background:var(--link);color:#fff}
+.fx-menu button:disabled{opacity:.36;cursor:default}
+.fx-menu button.danger:not(:disabled){color:var(--crit)}
+.fx-menu button.danger:hover:not(:disabled){background:var(--crit);color:#fff}
+.fx-menu hr{border:0;border-top:1px solid var(--panel-line);margin:4px 2px}
+
+/* Quick Look. */
+.fx-ql{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:36px;
+  background:rgba(8,18,24,.72)}
+.fx-ql figure{margin:0;display:flex;flex-direction:column;gap:10px;
+  max-width:min(1000px,92vw);max-height:86vh}
+.fx-ql img{max-width:100%;max-height:74vh;object-fit:contain;border-radius:6px;
+  background:#000;box-shadow:0 20px 60px rgba(0,0,0,.55)}
+.fx-ql figcaption{display:flex;justify-content:space-between;gap:16px;color:#e8f1f4;
+  font-family:var(--mono);font-size:10px}
+
+@media (max-width:720px){
+  .fx-col{flex-basis:82vw}
+  .fx-strip,.fx-grid{height:min(66vh,520px)}
+  .fx-view{margin-left:0}
+}
+
+/* Below this the row of actions will not fit beside the search field, so it
+   folds into the » menu. What stays is what you steer with: back, forward,
+   the field, and the view toggle. */
+@media (max-width:1180px){
+  .fx-actions{display:none}
+  .fx-more{display:grid;place-items:center}
+  .fx-sel{flex:1 1 auto}
+}
+@media (max-width:640px){
+  .fx-find{min-width:0;flex:1 1 90px}
+  /* The search field was already told it could shrink, but the group holding
+     it was not, and a flex item floors at its own min-content unless min-width
+     says otherwise. So the group kept its full width, carried the view toggle
+     off the right edge of a phone, and .shell clipped it — the toggle was on
+     the page and unreachable. */
+  .fx-tools{flex:1 1 auto;min-width:0}
+  .fx-sel .fx-meta{display:none}
+}
+
+/* ── Detail ────────────────────────────────────────────────────────────── */
+.detail-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+.detail-grid.lower{margin-top:14px}
+.panel{min-width:0;padding:15px;border:1px solid var(--panel-edge);border-radius:6px;
+  background:var(--panel);box-shadow:0 2px 4px rgba(44,80,91,.10),inset 0 1px var(--gloss-soft)}
+.full-panel{margin-top:14px}
+.panel-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:11px;
+  margin-bottom:13px;border-bottom:1px solid var(--panel-line);color:var(--faint);
+  font-family:var(--mono);font-size:9px}
+.panel-title>div{display:flex;align-items:center;gap:7px;color:var(--ink-2);font-family:inherit;font-size:12px}
+.panel-icon{display:grid;place-items:center;width:22px;height:22px;border-radius:4px;color:#fff;
+  background:linear-gradient(var(--gel-1),var(--gel-2))}
+.panel-foot,.power-detail{display:flex;align-items:center;justify-content:space-between;gap:5px;
+  padding-top:10px;margin-top:12px;border-top:1px solid var(--panel-line);color:var(--muted);
+  font-family:var(--mono);font-size:9px}
+.panel-foot strong,.power-detail b{color:var(--ink-2);font-weight:500}
+
+.core-row{display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--muted);
+  font-family:var(--mono);font-size:9px}
+.core-row>span{width:42px}
+/* The core row, with room for a longer name: a mount point, a fan, "decode". */
+.sensor-row{display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--muted);
+  font-family:var(--mono);font-size:10px}
+.sensor-row>span{flex:0 0 120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sensor-row strong{flex:0 0 auto;min-width:38px;text-align:right;color:var(--ink-2);font-size:10px;
+  font-weight:500;font-variant-numeric:tabular-nums}
+.core-row strong{width:38px;text-align:right;color:var(--ink-2);font-size:10px;
+  font-variant-numeric:tabular-nums}
+
+.temp-reading,.power-number{display:flex;align-items:baseline;gap:8px}
+.power-number{padding:8px 0 15px}
+.temp-reading strong,.power-number strong{color:var(--link);font-family:var(--mono);font-size:29px;
+  font-variant-numeric:tabular-nums}
+.temp-reading span,.power-number span{color:var(--muted);font-size:10px}
+.sparkline{display:block;width:100%;height:72px;margin:10px 0 3px;color:var(--link)}
+.sparkline-labels{display:flex;justify-content:space-between;color:var(--faint);
+  font-family:var(--mono);font-size:8px}
+.temp-status{display:flex;align-items:center;gap:6px;padding-top:10px;margin-top:11px;
+  border-top:1px solid var(--panel-line);color:var(--muted);font-size:9px}
+.temp-status strong{margin-left:auto;color:var(--faint);font-family:var(--mono);font-weight:400}
+.check-mark{color:var(--ok);font-weight:800}
+
+.memory-bar{height:12px;overflow:hidden;border:1px solid var(--meter-edge);border-radius:3px;
+  background:var(--groove)}
+.memory-bar span{display:block;height:100%;background:linear-gradient(var(--ok-1),var(--ok))}
+.memory-legend{display:grid;grid-template-columns:1fr 1fr;gap:9px 16px;margin-top:14px;
+  color:var(--muted);font-family:var(--mono);font-size:9px}
+.memory-legend span{display:flex;align-items:center;gap:5px}
+.memory-legend strong{margin-left:auto;color:var(--ink-2);font-weight:500}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.used{background:var(--ok)}
+.dot.cache{background:var(--ok-1)}
+.dot.free{background:var(--meter-bg-a)}
+.dot.swap{background:var(--warn-1)}
+
+.disk-row{display:flex;align-items:center;gap:10px;margin:12px 0;color:var(--muted);
+  font-family:var(--mono);font-size:9px;font-variant-numeric:tabular-nums}
+.disk-row .mount{width:72px;color:var(--ink-2)}
+.disk-row .meter{max-width:420px}
+.disk-row strong{color:var(--ink-2)}
+.disk-row>span:last-child{margin-left:auto}
+
+.network-row{display:grid;grid-template-columns:1.2fr 1fr .35fr .75fr .6fr;align-items:center;gap:8px;
+  padding:10px 0;border-bottom:1px solid var(--panel-line);color:var(--muted);
+  font-family:var(--mono);font-size:9px;font-variant-numeric:tabular-nums}
+.network-row:last-child{border:0}
+.network-row span:first-child{display:flex;align-items:center;gap:5px;color:var(--ink-2)}
+.network-secondary{display:flex;align-items:center;gap:3px;color:var(--faint)}
+
+.mini-table-head,.mini-table-row,.process-head,.process-row{display:grid;
+  grid-template-columns:1.3fr 1.15fr .6fr .7fr;align-items:center;gap:7px;
+  font-family:var(--mono);font-size:10px;font-variant-numeric:tabular-nums}
+.mini-table-head,.process-head{padding-bottom:7px;color:var(--faint);
+  border-bottom:1px solid var(--panel-edge);font-size:9px}
+.mini-table-row,.process-row{padding:8px 0;color:var(--muted);border-bottom:1px solid var(--panel-line)}
+.mini-table-row:last-child,.process-row:last-child{border:0}
+.mini-table-row span:first-child,.process-row span:nth-child(2){color:var(--ink-2);font-weight:500}
+.process-row span:nth-child(3),.process-row span:nth-child(4){color:var(--link)}
+.health-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);
+  box-shadow:0 0 5px var(--ok-1)}
+.process-head button{padding:0;border:0;color:var(--link);background:transparent;
+  font:inherit;text-align:left}
+
+@media (max-width:900px){
+  .detail-grid{grid-template-columns:1fr}
+  /* minmax(0,...), not 1fr. A bare 1fr track floors at the tile's min-content,
+     and the tile's widest unbreakable thing — "( Open in Browser )" — is about
+     190px. Two of those plus the gap is wider than a phone, and .shell clips
+     rather than scrolls, so the right-hand column was simply cut off the
+     screen. Zero as the floor lets the track be as narrow as the screen is. */
+  .apps-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .network-row{grid-template-columns:1.15fr 1fr .4fr .7fr}
+  .network-row .network-secondary:last-child{display:none}
+}
+@media (max-width:560px){
+  .app-tile{min-height:150px}
+  .app-icon{width:44px;height:44px;font-size:23px;margin-bottom:12px}
+  .disk-row .mount{width:58px}
+  .memory-legend{grid-template-columns:1fr}
+  /* Once the heading wraps, the count is no longer beside anything to be
+     flush against — it is its own line, and a right-aligned line under a
+     left-aligned one just looks misplaced. */
+  .app-summary{align-items:flex-start}
+
+  /* A phone has no second kind of window. The tile's own tap already lands in
+     a browser tab here — the pop-up it asks for is one — so this link is the
+     same gesture twice, and it is the widest thing on the tile. Gone, the
+     status word gets the row it was being squeezed out of. */
+  .app-browser{display:none}
+}
+
+/* ── Storage ───────────────────────────────────────────────────────────── */
+/* Miller columns. The strip scrolls sideways and each column scrolls down,
+   so a deep tree never widens the page or pushes the status bar off. */
+.fx-strip{display:flex;overflow-x:auto;overflow-y:hidden;gap:0;height:min(62vh,560px);
+  border:1px solid var(--panel-edge);border-radius:6px;background:var(--panel);
+  box-shadow:0 2px 4px rgba(44,80,91,.10),inset 0 1px var(--gloss-soft)}
+.fx-col{flex:0 0 268px;min-width:0;height:100%;overflow-y:auto;
+  border-right:1px solid var(--panel-line)}
+.fx-col:last-child{border-right:0}
+.fx-row{display:flex;align-items:center;gap:9px;width:100%;padding:4px 8px;border:0;
+  background:none;font:inherit;text-align:left;cursor:pointer}
+.fx-row:hover{background:var(--gloss-soft)}
+.fx-row.on{background:var(--link);color:#fff}
+/* A dotfile is dimmed, never dropped — findable, but not competing with the
+   things a person named themselves. */
+.fx-row.hidden .fx-name{opacity:.62}
+.fx-size{flex:0 0 auto;min-width:74px;text-align:right;font-family:var(--mono);font-size:10px;
+  font-variant-numeric:tabular-nums}
+.fx-size.huge{color:#3f9ee0}
+.fx-size.big{color:#4aa9c9}
+.fx-size.mid{color:#3fa38a}
+.fx-size.small{color:#5aa36a}
+.fx-size.zero{color:var(--faint)}
+/* "48.21 GB / 512.11 GB" on the boards. The capacity is the quieter half: it is
+   context for the number in front of it, not a second number to read. */
+.fx-cap{color:var(--faint)}
+.fx-row.on .fx-cap{color:rgba(255,255,255,.72)}
+/* A read-only root says so on the row, before you try to change it. */
+.fx-lock{flex:none;padding:1px 5px;border:1px solid var(--panel-line);border-radius:99px;
+  color:var(--faint);font-family:var(--mono);font-size:8px;letter-spacing:.02em}
+.fx-row.on .fx-lock{border-color:rgba(255,255,255,.45);color:rgba(255,255,255,.85)}
+.fx-row.on .fx-size,.fx-row.on .fx-name{color:#fff}
+.fx-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--ink);font-size:12px}
+.fx-name.link{font-style:italic}
+.fx-arrow{flex:none;color:var(--faint)}
+.fx-row.on .fx-arrow{color:#fff}
+.fx-note{display:flex;align-items:center;gap:7px;padding:10px 9px;color:var(--muted);
+  font-family:var(--mono);font-size:9px}
+.fx-note.bad{color:var(--warn,#b4622a)}
+.fx-spinner{width:10px;height:10px;border:2px solid var(--panel-line);border-top-color:var(--link);
+  border-radius:50%;animation:fx-spin .7s linear infinite}
+@keyframes fx-spin{to{transform:rotate(360deg)}}
+.fx-status{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  margin-top:9px;color:var(--muted);font-family:var(--mono);font-size:9px}
+.fx-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+@media (max-width:720px){
+  .fx-col{flex-basis:82vw}
+  .fx-strip{height:min(66vh,520px)}
+}
+
+/* ── Status: Apple's inset grouped lists. One rounded list per group, one row
+   per app, hairlines inset past the icon, figures on the right. No boxes
+   inside, no bars: it has to fit one screen. ── */
+.sgroups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:20px 24px;align-items:start;margin-top:4px}
+.sstack{display:grid;gap:20px;min-width:0;align-content:start}
+.sgrp{display:grid;gap:6px;min-width:0}
+.sgrp h3{margin:0;padding-left:14px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.slist{background:var(--card-1);border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px var(--panel-line)}
+.srow{display:flex;align-items:center;gap:12px;padding:7px 14px;min-height:46px;position:relative}
+.srow+.srow::before{content:"";position:absolute;top:0;left:54px;right:0;border-top:1px solid var(--panel-line)}
+.srow.opens{cursor:pointer}
+.srow.opens:hover{background:var(--row-hover)}
+.srow:focus-visible{outline:2px solid var(--link);outline-offset:-2px}
+.sico{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;flex:none;color:#fff;font-size:13px;font-weight:700}
+.sico.purple{background:linear-gradient(145deg,#d889ec,#793da9)}
+.sico.blue{background:linear-gradient(145deg,#78d9f3,#2774b7)}
+.sico.orange{background:linear-gradient(145deg,#ffcb79,#d76e22)}
+.sico.green{background:linear-gradient(145deg,#9ae6b2,#268d60)}
+.sico.pink{background:linear-gradient(145deg,#ffabc4,#be4f82)}
+.sico.art{background:none;overflow:hidden}
+.sico.art img{display:block;width:100%;height:100%;object-fit:contain}
+.smain{flex:1;min-width:0;display:grid}
+.smain .st{font-size:13px;font-weight:600;color:var(--ink)}
+.smain .ss{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.smain .ss.busy{color:var(--ok)}
+.smain .ss.bad{color:var(--crit)}
+.svv{display:grid;justify-items:end;flex:none}
+.sv{font-size:12.5px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.sv2{font-size:11.5px;color:var(--faint);white-space:nowrap;font-variant-numeric:tabular-nums}
+.schev{color:var(--faint);font-size:16px;line-height:1;transition:transform .15s}
+.schev.down{transform:rotate(90deg)}
+.srow.sub{min-height:30px;padding:4px 14px 4px 54px}
+/* The Users line: two halves side by side, each opening its list below. */
+.ssplit{display:flex;position:relative}
+.ssplit>.srow{flex:1;min-width:0}
+.ssplit>.srow+.srow{border-left:1px solid var(--panel-line)}
+.ssplit>.srow+.srow::before{display:none}
+.ssplit>.srow.on{background:var(--row-hover)}
+.srow+.ssplit::before,.ssplit+.srow::before{content:"";position:absolute;top:0;left:54px;right:0;border-top:1px solid var(--panel-line)}
+.srow.sub .st{font-size:12px;font-weight:400;color:var(--ink-2)}
+.srow.sub .sv{font-size:12px}
+.sfoot{margin:0;padding:2px 14px 0;font-size:11px;color:var(--faint)}
+.sfoot.bad{color:var(--crit)}
+.stog{width:40px;height:24px;border-radius:12px;border:0;padding:0;position:relative;cursor:pointer;flex:none;
+  background:var(--meter-bg-a);transition:background .2s}
+.stog::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.stog.on{background:var(--ok)}
+.stog.on::after{transform:translateX(16px)}
+.stog:disabled{opacity:.6;cursor:default}
+.stog:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.stog,.stog::after{transition:none}}

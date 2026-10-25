@@ -1,0 +1,164 @@
+{
+ "ts": 1792886825,
+ "active": [
+  {
+   "app": "Jellyfin",
+   "who": "user-a",
+   "what": "\"Another Film\"",
+   "device": "phone"
+  }
+ ],
+ "jellyfin": {
+  "films": 57,
+  "series": 15,
+  "episodes": 420,
+  "bytes": 789000000000
+ },
+ "kiwix": {
+  "books": 2,
+  "bytes": 237000000000
+ },
+ "users": [
+  {
+   "app": "Nextcloud",
+   "who": "user-a",
+   "what": "uploading",
+   "device": "laptop",
+   "start": 1792792963,
+   "end": 1792795963
+  },
+  {
+   "app": "Immich",
+   "who": "user-b",
+   "what": "uploading",
+   "device": "phone",
+   "start": 1792862963,
+   "end": 1792863963
+  },
+  {
+   "app": "Jellyfin",
+   "who": "user-b",
+   "what": "\"Some Film\"",
+   "device": "tv",
+   "start": 1792875763,
+   "end": 1792881163
+  },
+  {
+   "app": "Jellyfin",
+   "who": "user-a",
+   "what": "\"Another Film\"",
+   "device": "phone",
+   "start": 1792881763,
+   "end": 1792882963
+  }
+ ],
+ "accounts": {
+  "apps": {
+   "Jellyfin": 6,
+   "Nextcloud": 2,
+   "Immich": 2,
+   "Vaultwarden": 0,
+   "Gitea": 1,
+   "Tailnet": 1
+  },
+  "people": [
+   {
+    "name": "user-a",
+    "apps": {
+     "Jellyfin": {
+      "admin": true,
+      "disabled": false,
+      "lastSeen": 1792886225
+     },
+     "Nextcloud": {
+      "admin": true,
+      "disabled": false,
+      "lastSeen": 1792796825
+     },
+     "Immich": {
+      "admin": false,
+      "disabled": false,
+      "lastSeen": null
+     },
+     "Gitea": {
+      "admin": true,
+      "disabled": false,
+      "lastSeen": 1792686825
+     },
+     "Tailnet": {
+      "admin": false,
+      "disabled": false,
+      "lastSeen": null
+     }
+    }
+   },
+   {
+    "name": "user-b",
+    "apps": {
+     "Jellyfin": {
+      "admin": false,
+      "disabled": false,
+      "lastSeen": 1792856825
+     },
+     "Nextcloud": {
+      "admin": false,
+      "disabled": false,
+      "lastSeen": null
+     },
+     "Immich": {
+      "admin": false,
+      "disabled": false,
+      "lastSeen": null
+     }
+    }
+   },
+   {
+    "name": "user-c",
+    "apps": {
+     "Jellyfin": {
+      "admin": false,
+      "disabled": true,
+      "lastSeen": 1789886825
+     }
+    }
+   }
+  ]
+ },
+ "nextcloud": {
+  "bytes": 320000000000,
+  "users": [
+   {
+    "name": "user-a",
+    "bytes": 304000000000
+   },
+   {
+    "name": "user-b",
+    "bytes": 16000000000
+   }
+  ]
+ },
+ "immich": {
+  "photos": 18052,
+  "videos": 531,
+  "bytes": 39000000000,
+  "users": [
+   {
+    "name": "user-a",
+    "photos": 7182,
+    "videos": 472,
+    "bytes": 21000000000
+   },
+   {
+    "name": "user-b",
+    "photos": 10870,
+    "videos": 59,
+    "bytes": 18000000000
+   }
+  ]
+ },
+ "gitea": {
+  "repos": 7,
+  "bytes": 395000000,
+  "lastBackup": null
+ }
+}

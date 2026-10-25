@@ -1,0 +1,8 @@
+<!-- Drawn here: the API has no icon upstream. Same grid, stroke and palette as osint.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <rect width="180" height="180" fill="#0a0a0a"/>
+  <g fill="none" stroke="#f5f5f5" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M74 27 C53.0 27 60.5 34.497 60.5 48.42 L60.5 79.28999999999999 C60.5 87.0 44 90.0 44 90.0 C44 90.0 60.5 93.0 60.5 100.71000000000001 L60.5 131.57999999999998 C60.5 145.503 53.0 153 74 153"/>
+    <path d="M106 27 C127.0 27 119.5 34.497 119.5 48.42 L119.5 79.28999999999999 C119.5 87.0 136 90.0 136 90.0 C136 90.0 119.5 93.0 119.5 100.71000000000001 L119.5 131.57999999999998 C119.5 145.503 127.0 153 106 153"/>
+  </g>
+</svg>

@@ -1,0 +1,18 @@
+<!-- Drawn here for the Files tile. Colour on purpose: the OSINT icons are
+     monochrome because that is the OSINT app's identity, and this one is not
+     an OSINT app. The shape is the old desktop-computer icon every file
+     manager descends from. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <rect width="180" height="180" fill="#f2f4f5"/>
+  <g transform="translate(90 92) scale(.92) translate(-90 -92)">
+    <!-- monitor -->
+    <rect x="30" y="28" width="120" height="94" rx="6" fill="#c9ced2" stroke="#4a5359" stroke-width="5"/>
+    <rect x="44" y="42" width="92" height="66" fill="#1636e0"/>
+    <!-- the lit corner of a CRT -->
+    <path d="M44 42h92v14l-92 22z" fill="#3f63f5" opacity=".55"/>
+    <!-- base -->
+    <rect x="20" y="128" width="140" height="34" rx="5" fill="#c9ced2" stroke="#4a5359" stroke-width="5"/>
+    <rect x="96" y="140" width="48" height="9" rx="2" fill="#4a5359"/>
+    <circle cx="42" cy="145" r="5" fill="#3fa38a"/>
+  </g>
+</svg>

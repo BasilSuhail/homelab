@@ -1,0 +1,390 @@
+# qBittorrent, with every packet it sends going through AirVPN or going
+# nowhere. Deployed by deploy/install-torrent.sh.
+#
+# Two containers, one pod, one network namespace. gluetun brings up WireGuard
+# and owns the routing; qBittorrent has no network of its own and simply uses
+# whatever gluetun has set up. That shared namespace is the entire security
+# property: qBittorrent cannot be configured around the VPN, cannot fall back
+# to the host's connection, and cannot start talking before the tunnel is up —
+# there is no other route for it to take.
+#
+# It is also why the VPN is not separately switchable. A toggle that could
+# leave the client running with the tunnel down is precisely the failure this
+# shape exists to make impossible, so the two start and stop together.
+#
+# Nothing here touches the board's own networking. The WireGuard interface
+# lives in this pod's namespace; the Pi's routing table, and tailscaled with
+# it, are in a different one and never see it.
+#
+# Starts at zero replicas. This is the one workload meant to be off most of
+# the time — see the Role at the bottom, which lets the console turn it on.
+# gluetun's control server is private by default in recent versions — every
+# route requires authentication and there are no public ones. Two GET routes
+# are opened here and nothing else:
+#
+#   GET /v1/vpn/status     is the tunnel up. Also what the readiness probe
+#                          asks, which is why it cannot stay locked.
+#   GET /v1/publicip/ip    the address the traffic is leaving from, so the
+#                          console can show it and you never have to take the
+#                          tunnel on trust.
+#
+# Neither is a secret: one is a boolean and the other is AirVPN's own address,
+# which every peer already sees. Everything else stays denied, including
+# `PUT /v1/vpn/status`, which could otherwise stop the tunnel from anywhere in
+# the cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qbittorrent-gluetun-auth
+  namespace: pi
+data:
+  config.toml: |
+    [[roles]]
+    name = "console"
+    routes = ["GET /v1/vpn/status", "GET /v1/publicip/ip"]
+    auth = "none"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: pi
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      # The one difference between this and every working gluetun + qBittorrent
+      # setup published on the internet, all of which are docker-compose.
+      #
+      # Kubernetes writes a resolv.conf with five search domains and ndots:5.
+      # A name with fewer dots than that has the search list tried first, and
+      # "tracker.opentrackr.org" has two — so the first query actually sent is
+      # for tracker.opentrackr.org.pi.svc.cluster.local, which does not exist,
+      # and the answer is an authoritative NXDOMAIN. That is the exact string
+      # qBittorrent reported against every tracker in the magnet:
+      # "Host not found (authoritative)".
+      #
+      # Docker sets no search domains and ndots:1, which is why the same
+      # container image, the same gluetun and the same magnet work there.
+      #
+      # dnsPolicy None takes the search list away. Nothing in this pod resolves
+      # a cluster service by short name — it talks to trackers and peers, whose
+      # names are already fully qualified — so there is nothing to lose.
+      # gluetun still puts its own resolver in front of this; these are the
+      # upstreams behind it.
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers: ["1.1.1.1", "1.0.0.1"]
+        options:
+          - name: ndots
+            value: "1"
+      # gluetun is an init container with restartPolicy Always — a native
+      # sidecar. That is not a style choice: init containers start in order and
+      # the next one waits for this one's startupProbe.
+      #
+      # As an ordinary container it started in parallel and qBittorrent won the
+      # race, binding to the interfaces that existed at that moment — eth0 and
+      # loopback, no tun0 — and then tried to reach the swarm through eth0,
+      # which the killswitch drops. The symptom was zero DHT nodes and a magnet
+      # stuck on "retrieving metadata" forever, with a tunnel that was up and
+      # reporting a healthy exit address the whole time.
+      #
+      # The sidecar alone did not fix that, and this comment used to claim it
+      # did. Ordering is only worth as much as the probe it waits on, and the
+      # probe was passing before the tunnel existed — see the startupProbe
+      # below. The client came back up bound to eth0 and loopback again, with
+      # exactly the same symptom, which is how the gap was found.
+      #
+      # Two things close it, and both are needed. The probe now reads the
+      # tunnel's actual state, so the ordering means something. And the client
+      # binds to the tunnel address rather than to whatever it finds at
+      # startup, so it cannot end up on eth0 even if it does start early — see
+      # deploy/install-torrent.sh.
+      initContainers:
+        - name: gluetun
+          restartPolicy: Always
+          image: qmcgaw/gluetun:v3.40.4
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: airvpn
+            - name: VPN_TYPE
+              value: wireguard
+            # The three values AirVPN's Config Generator produces, held in a
+            # Secret the installer writes on the board. They are credentials
+            # and are never in this repository.
+            - name: WIREGUARD_PRIVATE_KEY
+              valueFrom: { secretKeyRef: { name: qbittorrent-vpn, key: privateKey } }
+            - name: WIREGUARD_PRESHARED_KEY
+              valueFrom: { secretKeyRef: { name: qbittorrent-vpn, key: presharedKey } }
+            - name: WIREGUARD_ADDRESSES
+              valueFrom: { secretKeyRef: { name: qbittorrent-vpn, key: addresses } }
+            # The port reserved in AirVPN's client area. Opened on the tunnel
+            # so peers can reach the client; without it the client can only
+            # make outbound connections and seeds badly.
+            - name: FIREWALL_VPN_INPUT_PORTS
+              valueFrom: { secretKeyRef: { name: qbittorrent-vpn, key: forwardedPort } }
+            # The exception to "everything through the tunnel", and the one
+            # that has to be right or the web interface is unreachable.
+            #
+            # The Tailscale ingress proxy reaches this pod over cluster
+            # networking. With the killswitch blocking everything that is not
+            # the tunnel, the reply to that request is dropped: the deployment
+            # comes up healthy and the page never loads. The cluster's own pod
+            # and service networks are allowed to answer directly, and nothing
+            # outside them bypasses the VPN.
+            #
+            # Discovered by the installer from the live cluster rather than
+            # written here. k3s' defaults are only defaults — a cluster built
+            # with different ranges would get a rule that allows networks it
+            # does not use and blocks the one it does, which presents as a web
+            # interface that never loads and a tunnel that looks fine.
+            - name: FIREWALL_OUTBOUND_SUBNETS
+              value: "__CLUSTER_CIDRS__"
+            # Which of AirVPN's servers to land on.
+            #
+            # Not implied by the config file the keys came from: AirVPN's
+            # WireGuard keys are account-wide, so any server accepts them and
+            # gluetun picks from the whole list. Generating a European config
+            # and getting an exit in Singapore is that, not a mistake in the
+            # config — and a tunnel to the other side of the world is a slow
+            # tunnel however good the link is.
+            - name: SERVER_COUNTRIES
+              value: "__VPN_COUNTRIES__"
+            # gluetun runs its own DNS-over-TLS resolver and points the pod's
+            # /etc/resolv.conf at it, and it ships a malicious-hostname
+            # blocklist turned on. Public BitTorrent trackers are on that list.
+            #
+            # A blocked name is answered NXDOMAIN, so qBittorrent reported
+            # "Host not found (authoritative)" against every tracker in the
+            # magnet — an authoritative denial rather than a timeout, which is
+            # why it never looked like a network fault. DHT was dead for the
+            # same reason: bootstrapping resolves router.bittorrent.com.
+            #
+            # Everything else worked and said so. curl from the same container
+            # fetched an AirVPN address, because ipinfo.io is not on the list.
+            # The tunnel, the routing and the killswitch were never the
+            # problem; one DNS answer was.
+            #
+            # Turned off rather than worked around: the client's whole job is
+            # to talk to trackers, and a resolver that refuses to resolve them
+            # is not protecting anything here.
+            - name: BLOCK_MALICIOUS
+              value: "off"
+            # And no DNS-over-TLS either. gluetun resolves upstream over TLS by
+            # default, and that is the second way its DNS can fail: the
+            # connection to the upstream resolver on port 853 has to succeed
+            # through the tunnel before any name resolves at all, and gluetun's
+            # own issue tracker carries reports of it timing out with exactly
+            # this symptom — magnets stuck downloading metadata, everything
+            # else working.
+            #
+            # Neither cause is provable from outside the pod, and both are the
+            # same component. Plain forwarding removes the component: no TLS
+            # handshake to fail, no blocklist to consult, just a query sent
+            # through the tunnel like any other packet. The tunnel is the thing
+            # keeping this private, and it is doing that job either way.
+            - name: DNS_UPSTREAM_RESOLVER_TYPE
+              value: "plain"
+            - name: DNS_UPSTREAM_PLAIN_ADDRESSES
+              value: "1.1.1.1:53,1.0.0.1:53"
+            - name: TZ
+              value: Europe/London
+          securityContext:
+            capabilities:
+              # WireGuard needs to create an interface and write routes.
+              add: ["NET_ADMIN"]
+          volumeMounts:
+            - name: tun
+              mountPath: /dev/net/tun
+            - name: gluetun-auth
+              mountPath: /gluetun/auth/config.toml
+              subPath: config.toml
+              readOnly: true
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 20m
+            limits:
+              memory: 128Mi
+              cpu: 200m
+          ports:
+            - name: control
+              containerPort: 8000
+          # /v1/vpn/status, not /v1/openvpn/status — the latter is the legacy
+          # OpenVPN path and answers nothing on a WireGuard tunnel, so the
+          # probe would never pass and the pod would never go ready.
+          #
+          # The tunnel's own health is a better readiness signal than anything
+          # qBittorrent could report: the client is useless until this passes.
+          # A startupProbe, not just a readiness one: on a native sidecar this
+          # is what holds the next container back. qBittorrent does not start
+          # until this passes.
+          #
+          # An exec probe rather than an httpGet, because httpGet only sees the
+          # status code. This route answers 200 from the moment gluetun's
+          # control server binds, with a body of {"status":"stopped"} while
+          # WireGuard is still coming up — so an httpGet passed in the first
+          # second or two and held nothing back. The race it was added to close
+          # was still open, and the symptom came back exactly as described
+          # above: qBittorrent listening on eth0 and loopback, no tun0, DHT at
+          # zero, magnets stuck on metadata forever.
+          #
+          # Reading the body is the difference. "running" is gluetun's own word
+          # for the tunnel being up, and nothing else passes.
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - wget -qO- http://127.0.0.1:8000/v1/vpn/status | grep -q '"status":"running"'
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            failureThreshold: 40
+          readinessProbe:
+            httpGet: { path: /v1/vpn/status, port: control }
+            periodSeconds: 15
+
+      containers:
+        - name: qbittorrent
+          image: lscr.io/linuxserver/qbittorrent:5.3.0_v2.1.2-ls484@sha256:e887804fa9de4c60f5f0fb1f3a7e4febe40a8f69fe736f70c4e8589b1f868dab
+          env:
+            - name: PUID
+              value: "__UID__"
+            - name: PGID
+              value: "__GID__"
+            - name: TZ
+              value: Europe/London
+            - name: WEBUI_PORT
+              value: "8080"
+          volumeMounts:
+            # SSD, with the other apps: settings, the torrent state, the
+            # resume data. Small, and rewritten constantly.
+            - name: config
+              mountPath: /config
+            # The whole 6TB under one mount, which is not laziness — a
+            # completed download is moved into place by hard link, and a link
+            # cannot cross a mount boundary. Two separate mounts of the same
+            # disk would mean copying every finished file, and a 40GB film
+            # would cost 80GB until it stopped seeding.
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 768Mi
+              cpu: 500m
+          # A TCP check, not an HTTP one. qBittorrent 5 puts its WebUI behind
+          # a login, and whether GET / answers 200 or 401 depends on settings
+          # this manifest does not own — a 401 fails readiness, the Service
+          # loses its endpoint, and the page is unreachable for a client that
+          # is running perfectly. That the port is listening is the honest
+          # claim to make here; whether the tunnel is up is gluetun's probe,
+          # and that is the one that matters.
+          readinessProbe:
+            tcpSocket: { port: 8080 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 30
+      volumes:
+        - name: tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+        - name: gluetun-auth
+          configMap:
+            name: qbittorrent-gluetun-auth
+        - name: config
+          hostPath:
+            path: __APPS_DIR__/qBittorrent
+            type: Directory
+        - name: data
+          hostPath:
+            path: __DATA_DIR__
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  namespace: pi
+spec:
+  selector:
+    app: qbittorrent
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+    # Read-only, and only the two routes the ConfigMap opens. The ingress
+    # below points at `http` alone, so this is reachable from inside the
+    # cluster and never from the tailnet.
+    - name: control
+      port: 8000
+      targetPort: control
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: torrent
+  namespace: pi
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: qbittorrent
+      port:
+        name: http
+  tls:
+    - hosts: ["torrent"]
+---
+# The console's power button, and the smallest permission that can implement
+# it. Everything about this is deliberately narrow:
+#
+#   Role, not ClusterRole   it cannot leave the pi namespace.
+#   deployments/scale       it can set a replica count and read one back. It
+#                           cannot edit the deployment, read its secrets, exec
+#                           into it, or see any other resource.
+#   resourceNames           it applies to this one deployment by name. Jellyfin,
+#                           the vault and the console itself are out of reach.
+#
+# The console has been read-only against the cluster until now. This is the
+# first write it can make, and it is a single integer on a single object.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pi-console-torrent
+  namespace: pi
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["qbittorrent"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    resourceNames: ["qbittorrent"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pi-console-torrent
+  namespace: pi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pi-console-torrent
+subjects:
+  - kind: ServiceAccount
+    name: pi-console
+    namespace: pi

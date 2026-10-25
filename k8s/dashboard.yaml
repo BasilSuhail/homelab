@@ -1,0 +1,215 @@
+# The fleet dashboard, as a workload in the cluster rather than a systemd unit
+# beside it. Issue #89. Deployed by deploy/install-dashboard-k8s.sh, which
+# substitutes __TAG__ — applying this file directly will not resolve an image.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pi
+---
+# Same read-only identity the systemd install uses, reached by the other route:
+# kubelet projects a token for this ServiceAccount into the pod, so the
+# dashboard needs no configured credentials at all when it runs here.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pi-console
+  namespace: pi
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pi-console-in-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pi-console-node-reader
+subjects:
+  - kind: ServiceAccount
+    name: pi-console
+    namespace: pi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pi-console
+  namespace: pi
+spec:
+  # One. The server keeps per-process CPU history in memory to average over,
+  # so a second replica would build its own and poll every agent twice.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pi-console
+  template:
+    metadata:
+      labels:
+        app: pi-console
+    spec:
+      serviceAccountName: pi-console
+      # pi2 is where the image was imported; there is no registry to pull it
+      # from anywhere else. Explicit rather than incidental, for when pi1
+      # joins as an agent.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      containers:
+        - name: console
+          image: pi-console:__TAG__
+          # Nothing to pull from: the image is imported into containerd
+          # directly. Without this the kubelet would try Docker Hub and fail.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            # No tailscaled socket in a pod, so node discovery uses the API:
+            # a read-only OAuth client (never expires), or else an API key
+            # (90 days). All optional, so either kind of Secret starts the pod.
+            # tailnet.ts falls back to the local CLI when none is set, which
+            # is what the systemd install relies on and what a pod cannot do.
+            - name: TAILSCALE_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: pi-console-tailscale
+                  key: oauth-id
+                  optional: true
+            - name: TAILSCALE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pi-console-tailscale
+                  key: oauth-secret
+                  optional: true
+            - name: TAILSCALE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pi-console-tailscale
+                  key: api-key
+                  optional: true
+            # The date that key dies, so the console can say so before it does.
+            # Tailscale will not tell a token its own expiry, so the installer
+            # records what you were shown. Optional: a Secret written before
+            # this existed carries no such key, and a pod that demanded one
+            # would sit in CreateContainerConfigError rather than start.
+            - name: TAILSCALE_KEY_EXPIRES
+              valueFrom:
+                secretKeyRef:
+                  name: pi-console-tailscale
+                  key: expires
+                  optional: true
+            # The shim's file and fan routes refuse requests without it. Made
+            # by agent/install.sh, copied in by deploy/install-dashboard-k8s.sh.
+            # Optional: without it the cards still draw, only Files is refused.
+            - name: AGENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: pi-console-agent
+                  key: token
+                  optional: true
+            # The console's password. Optional so the pod starts without it;
+            # with neither it nor a passkey, nobody can sign in.
+            - name: CONSOLE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pi-console-login
+                  key: password
+                  optional: true
+            # Passkeys, the session key and the password on/off switch. See
+            # server/lib/login.ts.
+            - name: CONSOLE_STATE_DIR
+              value: /var/lib/pi-console
+            # Node's fetch does not read the projected CA on its own.
+            - name: NODE_EXTRA_CA_CERTS
+              value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 20m
+            # What MemoryMax=256M meant under systemd. pi2's cgroups are on,
+            # so unlike pi1 this is enforced rather than decorative.
+            limits:
+              memory: 256Mi
+          # /healthz is answered before the sign-in check, by the server
+          # itself and not the fleet.
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # The Status tab's feed, written by pi-status.timer on the PC
+          # (deploy/install-dashboard-k8s.sh). The directory rather than the
+          # file: the timer replaces the file each run, and a file mount would
+          # keep showing the first one.
+          volumeMounts:
+            - name: status
+              mountPath: /run/pi-status
+              readOnly: true
+            # Writable, unlike the rest of the filesystem: registering a device
+            # adds to passkeys.json. Made by deploy/install-dashboard-k8s.sh,
+            # owned by the image's node user (1000), 700.
+            - name: state
+              mountPath: /var/lib/pi-console
+            # Writable: the refresh button asks for a scan by writing a file
+            # here, which pi-status-now.path on the PC answers. Made by
+            # deploy/install-dashboard-k8s.sh, owned by node (1000).
+            - name: trigger
+              mountPath: /run/pi-console
+      volumes:
+        - name: status
+          hostPath:
+            path: /run/pi-status
+            type: DirectoryOrCreate
+        - name: trigger
+          hostPath:
+            path: /run/pi-console
+            type: Directory
+        - name: state
+          hostPath:
+            path: "/1) Archive/Apps/Console"
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pi-console
+  namespace: pi
+spec:
+  selector:
+    app: pi-console
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# No host rule. This cluster runs one application, `tailscale serve` on pi2
+# forwards to Traefik, and pinning the tailnet name here would put it in the
+# repo for no gain.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pi-console
+  namespace: pi
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pi-console
+                port:
+                  name: http

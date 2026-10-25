@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Gitea: a branch splitting off a line of commits and merging back, drawn
+       to match files.png. Same chassis grey, same slate outline. Green
+       commits, so it reads apart from the amber vault and the brown archive. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- Board the graph sits on. -->
+  <rect x="26" y="26" width="204" height="204" rx="18" fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- The main line, and the branch leaving it and coming back. -->
+  <g fill="none" stroke="#4a5359" stroke-width="12" stroke-linecap="round">
+    <path d="M92 60v136"/>
+    <path d="M92 92c0 22 72 14 72 36s-72 18-72 40"/>
+  </g>
+
+  <!-- Commits. -->
+  <g fill="#4c9a52" stroke="#4a5359" stroke-width="8">
+    <circle cx="92" cy="60" r="16"/>
+    <circle cx="92" cy="196" r="16"/>
+    <circle cx="164" cy="128" r="18"/>
+  </g>
+</svg>

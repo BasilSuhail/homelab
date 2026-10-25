@@ -1,0 +1,54 @@
+# Read-only cluster access for the fleet dashboard.
+#
+# The dashboard asks the cluster one question: which nodes are control-plane
+# and which are workers, so a card can be labelled. It never discovers nodes
+# this way — Tailscale does that, because standalone machines have to appear
+# too — so this grants exactly nodes/get and nodes/list and nothing else. No
+# pods, no secrets, no namespaces.
+#
+# The kubeconfig on the Mac is cluster-admin. Handing that to a service that
+# needs a node list would be the easy version of this and the wrong one.
+#
+# Holds no secret material: the Secret below is an empty shell that the token
+# controller fills in on the cluster. Safe to commit.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pi-console-node-reader
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pi-console-node-reader
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pi-console-node-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pi-console-node-reader
+subjects:
+  - kind: ServiceAccount
+    name: pi-console-node-reader
+    namespace: kube-system
+---
+# Kubernetes 1.24 stopped issuing a Secret per ServiceAccount, so one is asked
+# for explicitly. The dashboard runs under systemd and reads its token once, at
+# install time: `kubectl create token` would hand back a credential with an
+# expiry, and the role labels would quietly revert to "standalone" whenever it
+# ran out. A ServiceAccount token Secret does not expire.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pi-console-node-reader
+  namespace: kube-system
+  annotations:
+    kubernetes.io/service-account.name: pi-console-node-reader
+type: kubernetes.io/service-account-token

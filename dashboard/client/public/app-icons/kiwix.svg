@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Kiwix: an open book, drawn to match vault.svg and files.png. Same
+       chassis grey, same slate outline. Teal, distinct from the violet of
+       Jellyfin next to it. -->
+  <rect width="256" height="256" fill="#f2f4f5"/>
+
+  <!-- Covers -->
+  <path d="M26 60 C26 52 32 46 40 46 L112 46 C120 46 128 54 128 62
+           L128 206 C128 198 120 190 112 190 L40 190 C32 190 26 184 26 176 Z"
+        fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M230 60 C230 52 224 46 216 46 L144 46 C136 46 128 54 128 62
+           L128 206 C128 198 136 190 144 190 L216 190 C224 190 230 184 230 176 Z"
+        fill="#c9ced2" stroke="#4a5359" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- Spine -->
+  <rect x="120" y="46" width="16" height="160" rx="4" fill="#4a5359"/>
+
+  <!-- Text lines, teal, suggesting an article rather than decoration. -->
+  <g fill="#2f9e93">
+    <rect x="46" y="82"  width="60" height="10" rx="5"/>
+    <rect x="46" y="106" width="60" height="10" rx="5"/>
+    <rect x="46" y="130" width="40" height="10" rx="5"/>
+    <rect x="150" y="82"  width="60" height="10" rx="5"/>
+    <rect x="150" y="106" width="60" height="10" rx="5"/>
+    <rect x="150" y="130" width="40" height="10" rx="5"/>
+  </g>
+</svg>
