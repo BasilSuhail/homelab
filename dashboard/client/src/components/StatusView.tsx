@@ -323,15 +323,16 @@ export const StatusView = ({ apps }: { apps: AppTile[] }) => {
             </div>
           </div>
 
-          <div class="sgrp">
+          {/* Rows for apps of this box's own: shown only while apps.json lists them. */}
+          {(app('OSINT') || app('OSINT News')) && <div class="sgrp">
             <h3>OSINT</h3>
             <div class="slist">
               <Row name="OSINT" app={app('OSINT')} letter="O" accent="blue" canOpen={!!app('OSINT')?.healthy} {...osint('OSINT')} />
               <Row name="OSINT News" app={app('OSINT News')} letter="N" accent="blue" canOpen={!!app('OSINT News')?.healthy} {...osint('OSINT News')} />
             </div>
-          </div>
+          </div>}
 
-          <div class="sgrp">
+          {app('Browser') && <div class="sgrp">
             <h3>Browser</h3>
             <div class="slist">
               <Row name="Browser" app={app('Browser')} letter="B" accent="blue"
@@ -339,7 +340,7 @@ export const StatusView = ({ apps }: { apps: AppTile[] }) => {
                 tone={app('Browser')?.healthy === false ? 'bad' : uses('Browser').length ? 'busy' : null}
                 value={uses('Browser').length ? [...new Set(uses('Browser').map((u) => u.who))].join(' · ') : 'Free'} />
             </div>
-          </div>
+          </div>}
 
           <div class="sgrp">
             <h3>Watching over it</h3>
